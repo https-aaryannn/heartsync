@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { User } from '../services/firebase';
+import { User, getWhoLikesMeCount, subscribeToMyCrushes, subscribeToMyMatches } from '../services/firebase';
 import { Period, Crush, Match } from '../types';
-import { getMyCrushes, getWhoLikesMeCount, getMyMatches } from '../services/firebase';
 import { Card, Button } from '../components/UI';
 import { Heart, Users, Eye, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -13,25 +12,38 @@ export default function Dashboard({ user, activePeriod }: { user: User, activePe
   const [likesCount, setLikesCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Initial Data Load
+  // Real-time Data Subscription
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const [c, m] = await Promise.all([
-          getMyCrushes(user.instagramUsername),
-          getMyMatches(user.instagramUsername)
-        ]);
-        setMyCrushes(c);
-        setMatches(m);
-      } catch (e) {
-        console.error("Error loading dashboard data:", e);
-      } finally {
+    if (!user || !user.instagramUsername) return;
+
+    setLoading(true);
+
+    const unsubscribeCrushes = subscribeToMyCrushes(
+      user.instagramUsername,
+      (crushes) => {
+        setMyCrushes(crushes);
+        setLoading(false); // First load done
+      },
+      (error) => {
+        console.error("Error subscribing to crushes:", error);
         setLoading(false);
       }
-    };
+    );
 
-    if (user && user.instagramUsername) fetchData();
+    const unsubscribeMatches = subscribeToMyMatches(
+      user.instagramUsername,
+      (matches) => {
+        setMatches(matches);
+      },
+      (error) => {
+        console.error("Error subscribing to matches:", error);
+      }
+    );
+
+    return () => {
+      unsubscribeCrushes();
+      unsubscribeMatches();
+    };
   }, [user]);
 
   // Auto-fetch likes count

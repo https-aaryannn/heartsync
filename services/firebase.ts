@@ -23,7 +23,8 @@ import {
   runTransaction,
   serverTimestamp,
   Timestamp,
-  or
+  or,
+  onSnapshot
 } from 'firebase/firestore';
 import { UserProfile, Crush, Period, VisibilityMode, Match, PeriodStats } from '../types';
 
@@ -262,6 +263,46 @@ export const submitCrush = async (
 
     return { success: true, matchFound: isMutual };
   });
+};
+
+
+export const subscribeToMyCrushes = (username: string, onUpdate: (crushes: Crush[]) => void, onError: (error: any) => void) => {
+  const norm = normalizeId(username);
+  const q = query(
+    collection(db, 'crushes'),
+    where('submitterInstagram', '==', norm),
+    where('withdrawn', '==', false),
+    orderBy('createdAt', 'desc')
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const crushes = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toMillis() || Date.now()
+    })) as Crush[];
+    onUpdate(crushes);
+  }, onError);
+};
+
+export const subscribeToMyMatches = (username: string, onUpdate: (matches: Match[]) => void, onError: (error: any) => void) => {
+  const norm = normalizeId(username);
+  const q = query(
+    collection(db, 'matches'),
+    or(
+      where('userAInstagram', '==', norm),
+      where('userBInstagram', '==', norm)
+    )
+  );
+
+  return onSnapshot(q, (snapshot) => {
+    const matches = snapshot.docs.map(doc => ({
+      id: doc.id,
+      ...doc.data(),
+      createdAt: doc.data().createdAt?.toMillis() || Date.now()
+    })) as Match[];
+    onUpdate(matches);
+  }, onError);
 };
 
 export const getMyCrushes = async (username: string) => {
