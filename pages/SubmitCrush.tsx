@@ -36,9 +36,11 @@ export default function SubmitCrush({ user, activePeriod }: { user: User, active
     setLoading(true);
     try {
       // Map user to UserProfile shape
+      // We rely on the user object passed prop which is from onAuthStateChanged
+      // It should have instagramUsername now.
       const userProfile = {
         uid: user.uid,
-        instagramId: user.instagramId,
+        instagramUsername: user.instagramUsername || user.instagramId, // Support both for safety
         displayName: user.displayName,
         photoURL: user.photoURL,
         createdAt: 0
@@ -187,7 +189,7 @@ export default function SubmitCrush({ user, activePeriod }: { user: User, active
           </div>
 
           <Button fullWidth size="lg" type="submit" disabled={loading || !visibility} variant={!visibility ? 'secondary' : 'primary'}>
-            {loading ? 'Submitting...' : 'Confirm Crush'}
+            {loading ? 'Confirm Crush' : 'Confirm Crush'}
           </Button>
         </form>
       </Card>

@@ -4,21 +4,21 @@ export enum VisibilityMode {
   REVEAL_AFTER_PERIOD = 'REVEAL_AFTER_PERIOD'
 }
 
+
 export interface UserProfile {
   uid: string;
-  instagramId: string | null;
+  instagramUsername: string; // "instagramUsername" as requested
   displayName: string | null;
   photoURL: string | null;
   isAdmin?: boolean;
-  handle?: string; // @username
   createdAt: number;
 }
 
 export interface Period {
   id: string;
-  name: string; // e.g. "Valentine's Week 2024"
-  startAt: number; // timestamp
-  endAt: number; // timestamp
+  name: string;
+  startAt: number;
+  endAt: number;
   defaultVisibility: VisibilityMode;
   mutualRevealEnabled: boolean;
   active: boolean;
@@ -26,13 +26,11 @@ export interface Period {
 
 export interface Crush {
   id: string;
-  submitterUserId: string;
-  submitterName: string;
-  submitterInstagramId: string; // Added for matching
-  targetUserId?: string; // Optional, if matched to a real user
-  targetName: string; // Normalized lowercase for search
-  targetNameDisplay: string; // Original casing
-  targetInstagramId: string; // Added for matching
+  submitterUserId: string; // useful availability
+  submitterName: string; // useful display
+  submitterInstagram: string; // The KEY field requested
+  targetInstagram: string; // The KEY field requested
+  targetNameDisplay: string;
   visibilityMode: VisibilityMode;
   periodId: string;
   createdAt: number;
@@ -43,8 +41,8 @@ export interface Crush {
 
 export interface Match {
   id: string;
-  userAId: string;
-  userBId: string;
+  userAInstagram: string;
+  userBInstagram: string;
   userAName: string;
   userBName: string;
   periodId: string;

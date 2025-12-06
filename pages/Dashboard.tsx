@@ -19,8 +19,8 @@ export default function Dashboard({ user, activePeriod }: { user: User, activePe
       setLoading(true);
       try {
         const [c, m] = await Promise.all([
-          getMyCrushes(user.uid),
-          getMyMatches(user.uid)
+          getMyCrushes(user.instagramUsername),
+          getMyMatches(user.instagramUsername)
         ]);
         setMyCrushes(c);
         setMatches(m);
@@ -31,14 +31,14 @@ export default function Dashboard({ user, activePeriod }: { user: User, activePe
       }
     };
 
-    if (user) fetchData();
-  }, [user]); // Re-run if user changes
+    if (user && user.instagramUsername) fetchData();
+  }, [user]);
 
   // Auto-fetch likes count
   useEffect(() => {
     const fetchLikes = async () => {
-      if (activePeriod && user.instagramId) {
-        const count = await getWhoLikesMeCount(user.instagramId, activePeriod.id);
+      if (activePeriod && user.instagramUsername) {
+        const count = await getWhoLikesMeCount(user.instagramUsername, activePeriod.id);
         setLikesCount(count);
       }
     };
@@ -121,7 +121,7 @@ export default function Dashboard({ user, activePeriod }: { user: User, activePe
                         <div>
                           <div className="flex items-center gap-3 mb-1">
                             <h3 className="text-xl font-bold text-white">{crush.targetNameDisplay}</h3>
-                            <span className="text-sm text-gray-500 bg-white/5 px-2 py-0.5 rounded">{crush.targetInstagramId}</span>
+                            <span className="text-sm text-gray-500 bg-white/5 px-2 py-0.5 rounded">{crush.targetInstagram}</span>
                           </div>
 
                           <div className="flex items-center gap-2 text-sm text-gray-400">
@@ -168,28 +168,33 @@ export default function Dashboard({ user, activePeriod }: { user: User, activePe
                     <h3 className="text-gray-400">No matches yet. Keep the faith!</h3>
                   </div>
                 ) : (
-                  matches.map(match => (
-                    <Card key={match.id} className="bg-gradient-to-r from-brand-primary/10 to-brand-secondary/10 border-brand-primary/30">
-                      <div className="flex flex-col items-center text-center">
-                        <div className="flex items-center justify-center gap-4 mb-4">
-                          <div className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden">
-                            <span className="text-2xl">You</span>
+                  matches.map(match => {
+                    const isUserA = match.userAInstagram === user.instagramUsername?.replace(/^@/, '').toLowerCase();
+                    const partnerName = isUserA ? match.userBName : match.userAName;
+
+                    return (
+                      <Card key={match.id} className="bg-gradient-to-r from-brand-primary/10 to-brand-secondary/10 border-brand-primary/30">
+                        <div className="flex flex-col items-center text-center">
+                          <div className="flex items-center justify-center gap-4 mb-4">
+                            <div className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden">
+                              <span className="text-2xl">You</span>
+                            </div>
+                            <Heart className="w-8 h-8 text-red-500 fill-red-500 animate-pulse" />
+                            <div className="w-16 h-16 rounded-full bg-brand-secondary flex items-center justify-center overflow-hidden">
+                              <span className="text-xl font-bold">{partnerName.charAt(0)}</span>
+                            </div>
                           </div>
-                          <Heart className="w-8 h-8 text-red-500 fill-red-500 animate-pulse" />
-                          <div className="w-16 h-16 rounded-full bg-brand-secondary flex items-center justify-center overflow-hidden">
-                            <span className="text-xl font-bold">{(match.userBId === user.uid ? match.userAName : match.userBName).charAt(0)}</span>
-                          </div>
+                          <h3 className="text-2xl font-bold text-white mb-2">
+                            It's a Match!
+                          </h3>
+                          <p className="text-gray-300 mb-4">
+                            You and <span className="text-brand-secondary font-bold">{partnerName}</span> like each other.
+                          </p>
+                          <Button variant="primary">Send Message (Coming Soon)</Button>
                         </div>
-                        <h3 className="text-2xl font-bold text-white mb-2">
-                          It's a Match!
-                        </h3>
-                        <p className="text-gray-300 mb-4">
-                          You and <span className="text-brand-secondary font-bold">{match.userBId === user.uid ? match.userAName : match.userBName}</span> like each other.
-                        </p>
-                        <Button variant="primary">Send Message (Coming Soon)</Button>
-                      </div>
-                    </Card>
-                  ))
+                      </Card>
+                    );
+                  })
                 )}
               </div>
             )}
