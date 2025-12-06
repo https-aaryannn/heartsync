@@ -87,7 +87,7 @@ export default function Login() {
               type="text"
               value={instagramId}
               onChange={(e) => setInstagramId(e.target.value)}
-              placeholder="Instagram ID (e.g. @username)"
+              placeholder="Instagram ID"
               className="w-full bg-black/20 border border-white/10 rounded-lg pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-brand-primary outline-none transition-all placeholder-gray-600"
             />
           </div>
@@ -98,7 +98,7 @@ export default function Login() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Password (Optional)"
+              placeholder="Password (create your own)"
               className="w-full bg-black/20 border border-white/10 rounded-lg pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-brand-primary outline-none transition-all placeholder-gray-600"
             />
           </div>
