@@ -1,13 +1,13 @@
 import React, { useEffect, useState } from 'react';
-import { User, getWhoLikesMeCount, subscribeToMyCrushes, subscribeToMyMatches } from '../services/firebase';
-import { Period, Crush, Match } from '../types';
+import { User, getWhoLikesMeCount, subscribeToMyMatches } from '../services/firebase';
+import { Period, Match } from '../types';
 import { Card, Button } from '../components/UI';
 import { Heart, Users, Eye, ArrowRight, Instagram, MessageCircle, Copy } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import MyCrushesTab from '../components/MyCrushesTab';
 
 export default function Dashboard({ user, activePeriod }: { user: User, activePeriod: Period | null }) {
   const [activeTab, setActiveTab] = useState<'crushes' | 'matches' | 'likes'>('crushes');
-  const [myCrushes, setMyCrushes] = useState<Crush[]>([]);
   const [matches, setMatches] = useState<Match[]>([]);
   const [likesCount, setLikesCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
@@ -18,30 +18,19 @@ export default function Dashboard({ user, activePeriod }: { user: User, activePe
 
     setLoading(true);
 
-    const unsubscribeCrushes = subscribeToMyCrushes(
-      user.instagramUsername,
-      (crushes) => {
-        setMyCrushes(crushes);
-        setLoading(false); // First load done
-      },
-      (error) => {
-        console.error("Error subscribing to crushes:", error);
-        setLoading(false);
-      }
-    );
-
     const unsubscribeMatches = subscribeToMyMatches(
       user.instagramUsername,
       (matches) => {
         setMatches(matches);
+        setLoading(false); // First load done
       },
       (error) => {
         console.error("Error subscribing to matches:", error);
+        setLoading(false);
       }
     );
 
     return () => {
-      unsubscribeCrushes();
       unsubscribeMatches();
     };
   }, [user]);
@@ -112,65 +101,7 @@ export default function Dashboard({ user, activePeriod }: { user: User, activePe
         ) : (
           <>
             {activeTab === 'crushes' && (
-              <div className="space-y-4">
-                {myCrushes.length === 0 ? (
-                  <Card className="text-center py-12 border-dashed border-white/20">
-                    <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
-                      <Heart className="w-8 h-8 text-gray-500" />
-                    </div>
-                    <h3 className="text-lg font-medium text-gray-300 mb-2">No crushes yet</h3>
-                    <p className="text-gray-500 mb-6">It takes courage, but it's worth it.</p>
-                    {activePeriod && (
-                      <Link to="/submit">
-                        <Button variant="outline">Add your first crush</Button>
-                      </Link>
-                    )}
-                  </Card>
-                ) : (
-                  myCrushes.map(crush => (
-                    <Card key={crush.id} className="group hover:bg-white/5 transition-colors border-l-4 border-l-transparent hover:border-l-brand-primary">
-                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                        <div>
-                          <div className="flex items-center gap-3 mb-1">
-                            <h3 className="text-xl font-bold text-white">{crush.targetNameDisplay}</h3>
-                            <span className="text-sm text-gray-500 bg-white/5 px-2 py-0.5 rounded">{crush.targetInstagram}</span>
-                          </div>
-
-                          <div className="flex items-center gap-2 text-sm text-gray-400">
-                            {crush.visibilityMode === 'ANON_COUNT' ? (
-                              <span className="flex items-center gap-1.5">
-                                <div className="w-1.5 h-1.5 rounded-full bg-brand-primary"></div>
-                                Submitted Anonymously
-                              </span>
-                            ) : (
-                              <span className="flex items-center gap-1.5">
-                                <div className="w-1.5 h-1.5 rounded-full bg-brand-secondary"></div>
-                                Reveal If Mutual
-                              </span>
-                            )}
-                            <span className="text-gray-600">•</span>
-                            <span>{new Date(crush.createdAt as any).toLocaleDateString()}</span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center">
-                          {crush.isMutual ? (
-                            <span className="px-4 py-1.5 rounded-full text-sm font-bold bg-green-500/20 text-green-400 border border-green-500/30 shadow-[0_0_10px_rgba(34,197,94,0.2)] flex items-center gap-2">
-                              <Heart className="w-4 h-4 fill-current" />
-                              MATCHED
-                            </span>
-                          ) : (
-                            <span className="px-4 py-1.5 rounded-full text-sm font-bold bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 flex items-center gap-2">
-                              <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></div>
-                              WAITING
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </Card>
-                  ))
-                )}
-              </div>
+              <MyCrushesTab user={user} activePeriod={activePeriod} />
             )}
 
             {activeTab === 'matches' && (
