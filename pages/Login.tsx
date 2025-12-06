@@ -19,17 +19,23 @@ export default function Login() {
     setLoading(true);
 
     try {
+      // Allow frictionless login by defaulting password if not provided
+      // This matches the "only ask for username" requirement while satisfying Firebase Auth
+      const finalPassword = password.trim() || `${instagramId.trim().toLowerCase()}_heartsync`;
+
       if (isSignUp) {
         if (!name.trim()) throw new Error("Name is required.");
         if (!instagramId.trim()) throw new Error("Instagram ID is required.");
-        await registerWithInstagram(instagramId, password, name);
+        await registerWithInstagram(instagramId, finalPassword, name);
       } else {
         if (!instagramId.trim()) throw new Error("Instagram ID is required.");
-        await loginWithInstagram(instagramId, password);
+        await loginWithInstagram(instagramId, finalPassword);
       }
-      navigate('/dashboard'); 
+      navigate('/dashboard');
     } catch (err: any) {
       let msg = "Authentication failed.";
+      if (err.message.includes("auth/invalid-email")) msg = "Invalid username format.";
+      if (err.message.includes("password")) msg = "Incorrect password (or account was created with a different one).";
       if (err.message) msg = err.message;
       setError(msg);
     } finally {
@@ -42,16 +48,16 @@ export default function Login() {
       <Card className="w-full max-w-md py-10">
         <div className="flex justify-center mb-6">
           <div className="bg-gradient-to-br from-brand-primary to-brand-secondary p-3 rounded-xl shadow-lg shadow-brand-primary/20">
-             <Heart className="w-10 h-10 text-white fill-white" />
+            <Heart className="w-10 h-10 text-white fill-white" />
           </div>
         </div>
-        
+
         <h2 className="text-2xl font-bold mb-2 text-center">
           {isSignUp ? 'Create Account' : 'Welcome Back'}
         </h2>
         <p className="text-gray-400 mb-8 text-center">
-          {isSignUp 
-            ? 'Join the sync and find your match.' 
+          {isSignUp
+            ? 'Join the sync and find your match.'
             : 'Sign in with your Instagram ID.'}
         </p>
 
@@ -60,7 +66,7 @@ export default function Login() {
             {error}
           </div>
         )}
-        
+
         <form onSubmit={handleSubmit} className="space-y-4">
           {isSignUp && (
             <div className="relative">
@@ -74,7 +80,7 @@ export default function Login() {
               />
             </div>
           )}
-          
+
           <div className="relative">
             <Instagram className="absolute left-3 top-3.5 h-5 w-5 text-gray-500" />
             <input
@@ -105,7 +111,7 @@ export default function Login() {
         <div className="mt-6 text-center">
           <p className="text-sm text-gray-400">
             {isSignUp ? "Already have an account?" : "Don't have an account?"}{" "}
-            <button 
+            <button
               onClick={() => {
                 setIsSignUp(!isSignUp);
                 setError('');

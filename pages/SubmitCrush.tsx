@@ -39,23 +39,31 @@ export default function SubmitCrush({ user, activePeriod }: { user: User, active
         photoURL: user.photoURL,
         createdAt: 0
       };
-      
+
       const result = await submitCrush(
-        userProfile, 
-        targetName, 
-        targetName, 
+        userProfile,
+        targetName,
+        targetName,
         targetInstagramId, // Pass the new ID
-        activePeriod.id, 
+        activePeriod.id,
         visibility
       );
-      
+
       if (result.matchFound) {
-        alert("It's a match! Check your dashboard.");
+        // We can show a confetti or a special modal here
+        alert("IT'S A MATCH! ❤️ check your dashboard.");
+      } else {
+        alert("Crush submitted secretly! We'll let you know if it matches.");
       }
-      
+
       navigate('/dashboard');
-    } catch (err) {
-      setError('Failed to submit. Try again.');
+    } catch (err: any) {
+      if (err.message === "Already submitted") {
+        alert("You already submitted this crush!");
+        navigate('/dashboard');
+        return;
+      }
+      setError(err.message || 'Failed to submit. Try again.');
       console.error(err);
     } finally {
       setLoading(false);
@@ -89,14 +97,14 @@ export default function SubmitCrush({ user, activePeriod }: { user: User, active
         )}
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <Input 
+          <Input
             label="Their Name"
             value={targetName}
             onChange={(e) => setTargetName(e.target.value)}
             placeholder="e.g., Jane Smith"
           />
 
-          <Input 
+          <Input
             label="Their Instagram ID"
             value={targetInstagramId}
             onChange={(e) => setTargetInstagramId(e.target.value)}
@@ -108,11 +116,11 @@ export default function SubmitCrush({ user, activePeriod }: { user: User, active
 
           <div className="space-y-3">
             <label className="block text-sm font-medium text-gray-400">Visibility Settings</label>
-            
+
             <label className="flex items-start p-3 rounded-lg border border-white/10 hover:bg-white/5 cursor-pointer transition-colors">
-              <input 
-                type="radio" 
-                name="vis" 
+              <input
+                type="radio"
+                name="vis"
                 className="mt-1 mr-3 text-brand-primary focus:ring-brand-primary"
                 checked={visibility === VisibilityMode.ANON_COUNT}
                 onChange={() => setVisibility(VisibilityMode.ANON_COUNT)}
@@ -124,9 +132,9 @@ export default function SubmitCrush({ user, activePeriod }: { user: User, active
             </label>
 
             <label className="flex items-start p-3 rounded-lg border border-brand-primary/30 bg-brand-primary/5 cursor-pointer transition-colors">
-              <input 
-                type="radio" 
-                name="vis" 
+              <input
+                type="radio"
+                name="vis"
                 className="mt-1 mr-3 text-brand-primary focus:ring-brand-primary"
                 checked={visibility === VisibilityMode.MUTUAL_ONLY}
                 onChange={() => setVisibility(VisibilityMode.MUTUAL_ONLY)}
@@ -136,11 +144,11 @@ export default function SubmitCrush({ user, activePeriod }: { user: User, active
                 <span className="text-xs text-gray-500">Recommended. Your name is revealed ONLY if they also submit a crush on you.</span>
               </div>
             </label>
-            
+
             <label className="flex items-start p-3 rounded-lg border border-white/10 hover:bg-white/5 cursor-pointer transition-colors">
-              <input 
-                type="radio" 
-                name="vis" 
+              <input
+                type="radio"
+                name="vis"
                 className="mt-1 mr-3 text-brand-primary focus:ring-brand-primary"
                 checked={visibility === VisibilityMode.REVEAL_AFTER_PERIOD}
                 onChange={() => setVisibility(VisibilityMode.REVEAL_AFTER_PERIOD)}

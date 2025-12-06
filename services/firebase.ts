@@ -29,7 +29,6 @@ import {
 import { UserProfile, Crush, Period, VisibilityMode, Match, PeriodStats } from '../types';
 
 // --- FIREBASE CONFIGURATION ---
-// In a real production app, these values come from your Firebase Console
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
   authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -50,7 +49,7 @@ export interface User extends UserProfile {
 }
 
 // Helper to normalize IDs for consistent matching
-const normalizeId = (id: string) => id.trim().toLowerCase().replace('@', '');
+const normalizeId = (id: string) => id.trim().toLowerCase().replace(/^@/, '');
 
 // Helper to generate a fake email for Instagram ID auth
 // Firebase Auth requires email, so we map @username -> username@heartsync.app
@@ -78,11 +77,12 @@ export const onAuthStateChanged = (
           createdAt: data.createdAt?.toMillis() || Date.now()
         } as User);
       } else {
-        // Fallback if doc doesn't exist yet (rare race condition on signup)
+        // Fallback or Initial State
+        const instagramId = firebaseUser.email?.split('@')[0] || '';
         callback({
           uid: firebaseUser.uid,
-          instagramId: firebaseUser.email?.split('@')[0] || null,
-          displayName: firebaseUser.displayName,
+          instagramId: instagramId,
+          displayName: firebaseUser.displayName || instagramId,
           photoURL: firebaseUser.photoURL,
           createdAt: Date.now()
         } as User);
@@ -96,9 +96,14 @@ export const onAuthStateChanged = (
 export const registerWithInstagram = async (instagramId: string, password: string, name: string) => {
   const normalizedId = normalizeId(instagramId);
   const email = getEmailFromId(normalizedId);
+
+  // Try to create user
   const userCredential = await createUserWithEmailAndPassword(auth, email, password);
 
   // Create User Profile in Firestore
+  // We use the UID as the document ID for 'users' for security rules simplicity,
+  // but we enforce uniqueness of instagramId via query/logic if needed, 
+  // though auth email uniqueness handles it here.
   const userProfile: any = {
     uid: userCredential.user.uid,
     instagramId: normalizedId,
@@ -119,10 +124,9 @@ export const loginWithInstagram = async (instagramId: string, password: string) 
   const email = getEmailFromId(normalizedId);
   try {
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
-    // User data will be emitted by onAuthStateChanged
     return { user: userCredential.user };
   } catch (error: any) {
-    if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential') {
+    if (error.code === 'auth/user-not-found' || error.code === 'auth/invalid-credential' || error.code === 'auth/invalid-email') {
       throw new Error("Instagram ID not found or incorrect password.");
     }
     throw error;
@@ -132,7 +136,6 @@ export const loginWithInstagram = async (instagramId: string, password: string) 
 export const logout = () => firebaseSignOut(auth);
 
 export const checkIsAdmin = async (userId: string) => {
-  // In a real app, use Custom Claims. For MVP, check Firestore or ID pattern.
   const userDoc = await getDoc(doc(db, 'users', userId));
   if (userDoc.exists()) {
     const data = userDoc.data();
@@ -152,12 +155,11 @@ export const getActivePeriod = async (): Promise<Period | null> => {
   const snapshot = await getDocs(q);
 
   if (snapshot.empty) {
-    // Return a default period so users can submit crushes immediately
     return {
       id: 'default_season_1',
       name: 'Season 1',
-      startAt: Date.now() - 86400000, // Started yesterday
-      endAt: Date.now() + 86400000 * 30, // Ends in 30 days
+      startAt: Date.now() - 86400000,
+      endAt: Date.now() + 86400000 * 30,
       defaultVisibility: VisibilityMode.MUTUAL_ONLY,
       mutualRevealEnabled: true,
       active: true
@@ -193,10 +195,29 @@ export const submitCrush = async (
   const normalizedTargetId = normalizeId(targetInstagramId);
   const myInstagramId = normalizeId(submitter.instagramId || '');
 
-  // We use a Transaction to ensure atomic matching
+  // Prevent self-crush
+  if (normalizedTargetId === myInstagramId) {
+    throw new Error("You cannot submit a crush on yourself.");
+  }
+
   return await runTransaction(db, async (transaction) => {
-    // 1. Check if the Target has already submitted a crush on Me
-    const q = query(
+    // 1. Check if I already submitted this crush (Idempotency)
+    // We need to query crushes collection. 
+    // Note: In transactions, queries must happen before writes.
+    const myExistingCrushQuery = query(
+      collection(db, 'crushes'),
+      where('periodId', '==', periodId),
+      where('submitterInstagramId', '==', myInstagramId),
+      where('targetInstagramId', '==', normalizedTargetId),
+      where('withdrawn', '==', false)
+    );
+    const myExistingRes = await getDocs(myExistingCrushQuery);
+    if (!myExistingRes.empty) {
+      return { success: true, matchFound: myExistingRes.docs[0].data().isMutual, message: 'Already submitted' };
+    }
+
+    // 2. Check if the Target has already submitted a crush on Me
+    const theirCrushQuery = query(
       collection(db, 'crushes'),
       where('periodId', '==', periodId),
       where('submitterInstagramId', '==', normalizedTargetId),
@@ -204,10 +225,10 @@ export const submitCrush = async (
       where('withdrawn', '==', false)
     );
 
-    const potentialMatchSnapshot = await getDocs(q);
-    const isMutual = !potentialMatchSnapshot.empty;
+    const theirCrushRes = await getDocs(theirCrushQuery);
+    const isMutual = !theirCrushRes.empty;
 
-    // 2. Create the new Crush Document
+    // 3. Create NEW Crush Document
     const newCrushRef = doc(collection(db, 'crushes'));
     const newCrushData = {
       submitterUserId: submitter.uid,
@@ -220,21 +241,28 @@ export const submitCrush = async (
       periodId,
       createdAt: serverTimestamp(),
       withdrawn: false,
-      isMutual: isMutual, // Set initial status
+      isMutual: isMutual,
     };
     transaction.set(newCrushRef, newCrushData);
 
-    // 3. If Mutual, update the OTHER crush and create a Match record
+    // 4. If Mutual, update THEIR crush and create MATCH record
     if (isMutual) {
-      const otherCrushDoc = potentialMatchSnapshot.docs[0];
-      transaction.update(otherCrushDoc.ref, { isMutual: true });
+      const theirCrushDoc = theirCrushRes.docs[0];
+      transaction.update(theirCrushDoc.ref, { isMutual: true });
 
-      const newMatchRef = doc(collection(db, 'matches'));
-      transaction.set(newMatchRef, {
-        userAId: submitter.uid,
-        userBId: otherCrushDoc.data().submitterUserId,
+      // Create Match Record
+      // We use a deterministic ID to avoid duplicates: sort(id1, id2)
+      const ids = [myInstagramId, normalizedTargetId].sort();
+      const matchId = `${periodId}_${ids[0]}_${ids[1]}`;
+      const matchRef = doc(db, 'matches', matchId);
+
+      transaction.set(matchRef, {
+        userAId: submitter.uid, // Note: userIds might differ from instagramIds structure, but we try to persist useful info
+        userBId: theirCrushDoc.data().submitterUserId,
+        userAInstagramId: myInstagramId,
+        userBInstagramId: normalizedTargetId,
         userAName: submitter.displayName || 'Unknown',
-        userBName: otherCrushDoc.data().submitterName,
+        userBName: theirCrushDoc.data().submitterName,
         periodId,
         createdAt: serverTimestamp()
       });
@@ -245,6 +273,7 @@ export const submitCrush = async (
 };
 
 export const getMyCrushes = async (userId: string) => {
+  // Use instagramId if possible, but submitterUserId is safer if authenticated
   const q = query(
     collection(db, 'crushes'),
     where('submitterUserId', '==', userId),
@@ -260,13 +289,9 @@ export const getMyCrushes = async (userId: string) => {
   })) as Crush[];
 };
 
-export const getWhoLikesMeCount = async (queryStr: string, periodId: string) => {
-  if (!queryStr) return 0;
-  const normalized = normalizeId(queryStr);
-
-  // Firestore doesn't support logical OR in a single field easily without advanced indexes sometimes,
-  // but we can query by targetInstagramId which is the robust way.
-  // Fallback to name if needed, but for MVP we prioritize ID.
+export const getWhoLikesMeCount = async (myInstagramId: string, periodId: string) => {
+  if (!myInstagramId) return 0;
+  const normalized = normalizeId(myInstagramId);
 
   const q = query(
     collection(db, 'crushes'),
@@ -280,7 +305,10 @@ export const getWhoLikesMeCount = async (queryStr: string, periodId: string) => 
 };
 
 export const getMyMatches = async (userId: string) => {
-  // Simple OR query support in newer Firestore SDKs
+  // We need to fetch the current user's INSTAGRAM ID to query matches effectively 
+  // OR we rely on userAId/userBId if we stored them correctly.
+  // In submitCrush we stored uids.
+
   const q = query(
     collection(db, 'matches'),
     or(
@@ -298,7 +326,6 @@ export const getMyMatches = async (userId: string) => {
 };
 
 export const getAdminStats = async (periodId: string): Promise<PeriodStats> => {
-  // Aggregation in client-side code (Not ideal for millions of records but fine for MVP)
   const crushesSnap = await getDocs(query(collection(db, 'crushes'), where('periodId', '==', periodId)));
   const matchesSnap = await getDocs(query(collection(db, 'matches'), where('periodId', '==', periodId)));
 
@@ -306,7 +333,8 @@ export const getAdminStats = async (periodId: string): Promise<PeriodStats> => {
 
   const nameCounts: Record<string, number> = {};
   crushes.forEach((c: any) => {
-    nameCounts[c.targetNameDisplay] = (nameCounts[c.targetNameDisplay] || 0) + 1;
+    const name = c.targetNameDisplay || c.targetInstagramId;
+    nameCounts[name] = (nameCounts[name] || 0) + 1;
   });
 
   const topNames = Object.entries(nameCounts)
@@ -318,6 +346,6 @@ export const getAdminStats = async (periodId: string): Promise<PeriodStats> => {
     totalCrushes: crushesSnap.size,
     totalMatches: matchesSnap.size,
     topNames,
-    dailySubmissions: [] // omitted for brevity in MVP
+    dailySubmissions: []
   };
 };
