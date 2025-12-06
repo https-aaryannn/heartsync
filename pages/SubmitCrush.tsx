@@ -120,7 +120,7 @@ export default function SubmitCrush({ user, activePeriod }: { user: User, active
               <Input
                 label="Their Instagram ID"
                 value={targetInstagramId}
-                onChange={(e) => setTargetInstagramId(e.target.value)}
+                onChange={(e) => setTargetInstagramId(e.target.value.toLowerCase().trim())}
                 placeholder=""
               />
               <p className="text-xs text-gray-500 mt-1">

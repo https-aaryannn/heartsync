@@ -86,7 +86,7 @@ export default function Login() {
             <input
               type="text"
               value={instagramId}
-              onChange={(e) => setInstagramId(e.target.value)}
+              onChange={(e) => setInstagramId(e.target.value.toLowerCase().trim())}
               placeholder="Instagram ID"
               className="w-full bg-black/20 border border-white/10 rounded-lg pl-10 pr-4 py-3 text-white focus:ring-2 focus:ring-brand-primary outline-none transition-all placeholder-gray-600"
             />
