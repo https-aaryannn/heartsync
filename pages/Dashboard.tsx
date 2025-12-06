@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { User, getWhoLikesMeCount, subscribeToMyCrushes, subscribeToMyMatches } from '../services/firebase';
 import { Period, Crush, Match } from '../types';
 import { Card, Button } from '../components/UI';
-import { Heart, Users, Eye, ArrowRight } from 'lucide-react';
+import { Heart, Users, Eye, ArrowRight, Instagram, MessageCircle, Copy } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function Dashboard({ user, activePeriod }: { user: User, activePeriod: Period | null }) {
@@ -183,6 +183,7 @@ export default function Dashboard({ user, activePeriod }: { user: User, activePe
                   matches.map(match => {
                     const isUserA = match.userAInstagram === user.instagramUsername?.replace(/^@/, '').toLowerCase();
                     const partnerName = isUserA ? match.userBName : match.userAName;
+                    const partnerHandle = isUserA ? match.userBInstagram : match.userAInstagram;
 
                     return (
                       <Card key={match.id} className="bg-gradient-to-r from-brand-primary/10 to-brand-secondary/10 border-brand-primary/30">
@@ -199,10 +200,47 @@ export default function Dashboard({ user, activePeriod }: { user: User, activePe
                           <h3 className="text-2xl font-bold text-white mb-2">
                             It's a Match!
                           </h3>
-                          <p className="text-gray-300 mb-4">
+                          <p className="text-gray-300 mb-6">
                             You and <span className="text-brand-secondary font-bold">{partnerName}</span> like each other.
                           </p>
-                          <Button variant="primary">Send Message (Coming Soon)</Button>
+
+                          <a
+                            href={`https://instagram.com/${partnerHandle}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full md:w-auto mb-8"
+                          >
+                            <Button variant="primary" className="w-full md:w-auto">
+                              <Instagram className="w-4 h-4 mr-2" />
+                              Open @{partnerHandle} on Instagram
+                            </Button>
+                          </a>
+
+                          <div className="w-full text-left bg-black/20 rounded-xl p-4 md:p-6 border border-white/5">
+                            <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                              <MessageCircle className="w-4 h-4" />
+                              Need help starting the conversation?
+                            </h4>
+                            <div className="space-y-2">
+                              {[
+                                "Hey, looks like we matched on Heartsync 👀 had to come say hi!",
+                                "Hi! Sooo… Heartsync thinks we’d vibe 😅 what do you think?",
+                                "Hey, I didn’t expect us to match there 😂 how’s your day going?"
+                              ].map((msg, i) => (
+                                <button
+                                  key={i}
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(msg);
+                                    // Optional: visual feedback
+                                  }}
+                                  className="w-full text-left p-3 rounded-lg bg-white/5 hover:bg-white/10 border border-white/5 hover:border-white/20 transition-all text-sm text-gray-300 flex items-center justify-between group"
+                                >
+                                  <span className="pr-4">{msg}</span>
+                                  <Copy className="w-4 h-4 opacity-0 group-hover:opacity-100 transition-opacity text-brand-primary" />
+                                </button>
+                              ))}
+                            </div>
+                          </div>
                         </div>
                       </Card>
                     );
