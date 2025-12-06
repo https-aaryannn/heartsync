@@ -28,23 +28,13 @@ service cloud.firestore {
     // 3. Create new crushes.
     // 4. Update an existing crush sent TO them (to mark isMutual).
     
+    // --- Crushes Collection ---
+    // Key fields: submitterInstagram, targetInstagram, isMutual
     match /crushes/{crushId} {
-      // Allow create: if authenticated. Ideally check data.submitterInstagram == user.profile.instagramUsername 
-      // (but rules can't easily cross-reference without extra reads. For MVP, we trust auth).
       allow create: if isSignedIn();
-
-      // Allow read: if I am the submitter OR I am the target.
-      // (This assumes client queries properly filter. Rules enforce the filter).
-      // Note: Rules cannot filter results, only allow/deny. Queries must match rules.
-      allow read: if isSignedIn() && (
-        resource.data.submitterUserId == request.auth.uid ||
-        // We rely on 'submitterUserId' because instagramUsername isn't in auth token by default.
-        // If we only have instagram keys in data, we can't easily secure "target is me" without looking up user doc.
-        // For MVP: We will store 'targetUserId' if possible, OR we allow generic read if we can't strict lock.
-        // STRICTER: We assume client stores submitterUserId.
-        // Target filtering is harder. We might need to allow list if we want dashboard "Who likes me" to work.
-        true 
-      );
+      // Allow read: Authenticated users can read (client filters by own visibility)
+      // This is required because rules cannot easily verify 'submitterInstagram' == auth.user without custom claims.
+      allow read: if isSignedIn();
       
       // Allow update: 
       // 1. I can withdraw my crush (owner).
