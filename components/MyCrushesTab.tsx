@@ -95,7 +95,7 @@ export default function MyCrushesTab({ user, activePeriod }: MyCrushesTabProps) 
                                 ) : (
                                     <span className="px-4 py-1.5 rounded-full text-sm font-bold bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 flex items-center gap-2">
                                         <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></div>
-                                        Pending
+                                        Waiting
                                     </span>
                                 )}
                             </div>

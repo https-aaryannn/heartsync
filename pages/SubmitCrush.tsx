@@ -113,7 +113,7 @@ export default function SubmitCrush({ user, activePeriod }: { user: User, active
               label="Their Name"
               value={targetName}
               onChange={(e) => setTargetName(e.target.value)}
-              placeholder="e.g., Jane Smith"
+              placeholder=""
             />
 
             <div>
@@ -121,7 +121,7 @@ export default function SubmitCrush({ user, activePeriod }: { user: User, active
                 label="Their Instagram ID"
                 value={targetInstagramId}
                 onChange={(e) => setTargetInstagramId(e.target.value)}
-                placeholder="e.g., @jane.smith"
+                placeholder=""
               />
               <p className="text-xs text-gray-500 mt-1">
                 Required to match you if they like you back.
@@ -141,8 +141,8 @@ export default function SubmitCrush({ user, activePeriod }: { user: User, active
                 type="button"
                 onClick={() => setVisibility(VisibilityMode.ANON_COUNT)}
                 className={`relative p-6 rounded-xl border-2 text-left transition-all duration-200 group flex flex-col items-center text-center gap-3 ${visibility === VisibilityMode.ANON_COUNT
-                    ? 'bg-brand-primary/10 border-brand-primary shadow-[0_0_20px_rgba(255,105,180,0.15)]'
-                    : 'bg-white/5 border-transparent hover:bg-white/10 hover:border-white/10'
+                  ? 'bg-brand-primary/10 border-brand-primary shadow-[0_0_20px_rgba(255,105,180,0.15)]'
+                  : 'bg-white/5 border-transparent hover:bg-white/10 hover:border-white/10'
                   }`}
               >
                 <div className={`p-3 rounded-full ${visibility === VisibilityMode.ANON_COUNT ? 'bg-brand-primary text-white' : 'bg-gray-800 text-gray-400 group-hover:bg-gray-700'}`}>
@@ -161,8 +161,8 @@ export default function SubmitCrush({ user, activePeriod }: { user: User, active
                 type="button"
                 onClick={() => setVisibility(VisibilityMode.MUTUAL_ONLY)}
                 className={`relative p-6 rounded-xl border-2 text-left transition-all duration-200 group flex flex-col items-center text-center gap-3 ${visibility === VisibilityMode.MUTUAL_ONLY
-                    ? 'bg-brand-secondary/10 border-brand-secondary shadow-[0_0_20px_rgba(147,51,234,0.15)]'
-                    : 'bg-white/5 border-transparent hover:bg-white/10 hover:border-white/10'
+                  ? 'bg-brand-secondary/10 border-brand-secondary shadow-[0_0_20px_rgba(147,51,234,0.15)]'
+                  : 'bg-white/5 border-transparent hover:bg-white/10 hover:border-white/10'
                   }`}
               >
                 <div className={`p-3 rounded-full ${visibility === VisibilityMode.MUTUAL_ONLY ? 'bg-brand-secondary text-white' : 'bg-gray-800 text-gray-400 group-hover:bg-gray-700'}`}>

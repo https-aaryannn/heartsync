@@ -271,8 +271,8 @@ export const subscribeToMyCrushes = (username: string, onUpdate: (crushes: Crush
   const q = query(
     collection(db, 'crushes'),
     where('submitterInstagram', '==', norm),
-    where('withdrawn', '==', false),
-    orderBy('createdAt', 'desc')
+    where('withdrawn', '==', false)
+    // orderBy('createdAt', 'desc') // Checking if index is missing causing empty results
   );
 
   return onSnapshot(q, (snapshot) => {
@@ -281,6 +281,10 @@ export const subscribeToMyCrushes = (username: string, onUpdate: (crushes: Crush
       ...doc.data(),
       createdAt: doc.data().createdAt?.toMillis() || Date.now()
     })) as Crush[];
+
+    // Client-side sort to avoid index requirements for now
+    crushes.sort((a, b) => b.createdAt - a.createdAt);
+
     onUpdate(crushes);
   }, onError);
 };
@@ -310,16 +314,18 @@ export const getMyCrushes = async (username: string) => {
   const q = query(
     collection(db, 'crushes'),
     where('submitterInstagram', '==', norm),
-    where('withdrawn', '==', false),
-    orderBy('createdAt', 'desc')
+    where('withdrawn', '==', false)
+    // orderBy('createdAt', 'desc')
   );
 
   const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => ({
+  const results = snapshot.docs.map(doc => ({
     id: doc.id,
     ...doc.data(),
     createdAt: doc.data().createdAt?.toMillis() || Date.now()
   })) as Crush[];
+
+  return results.sort((a, b) => b.createdAt - a.createdAt);
 };
 
 export const getWhoLikesMeCount = async (myUsername: string, periodId: string) => {
