@@ -4,13 +4,13 @@ import { Period, VisibilityMode } from '../types';
 import { submitCrush } from '../services/firebase';
 import { Card, Button, Input } from '../components/UI';
 import { useNavigate } from 'react-router-dom';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, Ghost, Heart, CheckCircle2 } from 'lucide-react';
 
 export default function SubmitCrush({ user, activePeriod }: { user: User, activePeriod: Period | null }) {
   const navigate = useNavigate();
   const [targetName, setTargetName] = useState('');
   const [targetInstagramId, setTargetInstagramId] = useState('');
-  const [visibility, setVisibility] = useState<VisibilityMode>(VisibilityMode.MUTUAL_ONLY);
+  const [visibility, setVisibility] = useState<VisibilityMode | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -26,6 +26,10 @@ export default function SubmitCrush({ user, activePeriod }: { user: User, active
     }
     if (!activePeriod) {
       setError('No active period.');
+      return;
+    }
+    if (!visibility) {
+      setError('Please select a submission method.');
       return;
     }
 
@@ -44,7 +48,7 @@ export default function SubmitCrush({ user, activePeriod }: { user: User, active
         userProfile,
         targetName,
         targetName,
-        targetInstagramId, // Pass the new ID
+        targetInstagramId,
         activePeriod.id,
         visibility
       );
@@ -82,13 +86,17 @@ export default function SubmitCrush({ user, activePeriod }: { user: User, active
   }
 
   return (
-    <div className="max-w-xl mx-auto px-4 py-12">
-      <Card>
-        <div className="mb-8 text-center">
-          <h1 className="text-2xl font-bold mb-2">Who caught your eye?</h1>
-          <p className="text-gray-400 text-sm">Be honest. It's mostly anonymous.</p>
-        </div>
+    <div className="max-w-2xl mx-auto px-4 py-12">
+      <div className="mb-8 text-center">
+        <h1 className="text-3xl font-bold mb-3 text-transparent bg-clip-text bg-gradient-to-r from-brand-secondary to-brand-primary">
+          New Crush
+        </h1>
+        <p className="text-gray-400">
+          Shoot your shot. We keep it safe.
+        </p>
+      </div>
 
+      <Card className="p-6 md:p-8">
         {error && (
           <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-lg mb-6 flex items-center gap-2">
             <AlertCircle className="w-5 h-5" />
@@ -96,72 +104,90 @@ export default function SubmitCrush({ user, activePeriod }: { user: User, active
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <Input
-            label="Their Name"
-            value={targetName}
-            onChange={(e) => setTargetName(e.target.value)}
-            placeholder="e.g., Jane Smith"
-          />
+        <form onSubmit={handleSubmit} className="space-y-8">
+          {/* Inputs Section */}
+          <div className="space-y-6">
+            <Input
+              label="Their Name"
+              value={targetName}
+              onChange={(e) => setTargetName(e.target.value)}
+              placeholder="e.g., Jane Smith"
+            />
 
-          <Input
-            label="Their Instagram ID"
-            value={targetInstagramId}
-            onChange={(e) => setTargetInstagramId(e.target.value)}
-            placeholder="e.g., @jane.smith"
-          />
-          <p className="text-xs text-gray-500 -mt-4 mb-2">
-            Required for mutual match detection.
-          </p>
-
-          <div className="space-y-3">
-            <label className="block text-sm font-medium text-gray-400">Visibility Settings</label>
-
-            <label className="flex items-start p-3 rounded-lg border border-white/10 hover:bg-white/5 cursor-pointer transition-colors">
-              <input
-                type="radio"
-                name="vis"
-                className="mt-1 mr-3 text-brand-primary focus:ring-brand-primary"
-                checked={visibility === VisibilityMode.ANON_COUNT}
-                onChange={() => setVisibility(VisibilityMode.ANON_COUNT)}
+            <div>
+              <Input
+                label="Their Instagram ID"
+                value={targetInstagramId}
+                onChange={(e) => setTargetInstagramId(e.target.value)}
+                placeholder="e.g., @jane.smith"
               />
-              <div>
-                <span className="block text-white font-medium">Anonymous Count Only</span>
-                <span className="text-xs text-gray-500">They will just see "+1 crush". Your name is never revealed.</span>
-              </div>
-            </label>
-
-            <label className="flex items-start p-3 rounded-lg border border-brand-primary/30 bg-brand-primary/5 cursor-pointer transition-colors">
-              <input
-                type="radio"
-                name="vis"
-                className="mt-1 mr-3 text-brand-primary focus:ring-brand-primary"
-                checked={visibility === VisibilityMode.MUTUAL_ONLY}
-                onChange={() => setVisibility(VisibilityMode.MUTUAL_ONLY)}
-              />
-              <div>
-                <span className="block text-white font-medium">Reveal if Mutual</span>
-                <span className="text-xs text-gray-500">Recommended. Your name is revealed ONLY if they also submit a crush on you.</span>
-              </div>
-            </label>
-
-            <label className="flex items-start p-3 rounded-lg border border-white/10 hover:bg-white/5 cursor-pointer transition-colors">
-              <input
-                type="radio"
-                name="vis"
-                className="mt-1 mr-3 text-brand-primary focus:ring-brand-primary"
-                checked={visibility === VisibilityMode.REVEAL_AFTER_PERIOD}
-                onChange={() => setVisibility(VisibilityMode.REVEAL_AFTER_PERIOD)}
-              />
-              <div>
-                <span className="block text-white font-medium">Reveal After Season</span>
-                <span className="text-xs text-gray-500">Your name is shown to them when the season ends.</span>
-              </div>
-            </label>
+              <p className="text-xs text-gray-500 mt-1">
+                Required to match you if they like you back.
+              </p>
+            </div>
           </div>
 
-          <Button fullWidth type="submit" disabled={loading}>
-            {loading ? 'Syncing...' : 'Submit Crush'}
+          <div className="border-t border-white/5 my-6"></div>
+
+          {/* Selection Section */}
+          <div>
+            <h3 className="text-lg font-bold text-white mb-4 text-center">How do you want to submit your crush?</h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Option 1: Anonymous */}
+              <button
+                type="button"
+                onClick={() => setVisibility(VisibilityMode.ANON_COUNT)}
+                className={`relative p-6 rounded-xl border-2 text-left transition-all duration-200 group flex flex-col items-center text-center gap-3 ${visibility === VisibilityMode.ANON_COUNT
+                    ? 'bg-brand-primary/10 border-brand-primary shadow-[0_0_20px_rgba(255,105,180,0.15)]'
+                    : 'bg-white/5 border-transparent hover:bg-white/10 hover:border-white/10'
+                  }`}
+              >
+                <div className={`p-3 rounded-full ${visibility === VisibilityMode.ANON_COUNT ? 'bg-brand-primary text-white' : 'bg-gray-800 text-gray-400 group-hover:bg-gray-700'}`}>
+                  <Ghost className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-white mb-1">Submit Anonymously</h4>
+                  <p className="text-xs text-gray-400 leading-relaxed">
+                    Your identity will remain hidden unless both of you submit each other.
+                  </p>
+                </div>
+              </button>
+
+              {/* Option 2: Mutual Reveal */}
+              <button
+                type="button"
+                onClick={() => setVisibility(VisibilityMode.MUTUAL_ONLY)}
+                className={`relative p-6 rounded-xl border-2 text-left transition-all duration-200 group flex flex-col items-center text-center gap-3 ${visibility === VisibilityMode.MUTUAL_ONLY
+                    ? 'bg-brand-secondary/10 border-brand-secondary shadow-[0_0_20px_rgba(147,51,234,0.15)]'
+                    : 'bg-white/5 border-transparent hover:bg-white/10 hover:border-white/10'
+                  }`}
+              >
+                <div className={`p-3 rounded-full ${visibility === VisibilityMode.MUTUAL_ONLY ? 'bg-brand-secondary text-white' : 'bg-gray-800 text-gray-400 group-hover:bg-gray-700'}`}>
+                  <Heart className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="font-bold text-white mb-1">Reveal Only If Mutual</h4>
+                  <p className="text-xs text-gray-400 leading-relaxed">
+                    Your identity will be revealed only if there is a mutual crush.
+                  </p>
+                </div>
+              </button>
+            </div>
+
+            {/* Confirmation Message */}
+            <div className={`mt-6 text-center transition-opacity duration-300 ${visibility ? 'opacity-100' : 'opacity-0'}`}>
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-brand-primary font-medium text-sm">
+                <CheckCircle2 className="w-4 h-4" />
+                <span>
+                  You selected: <span className="text-white">{visibility === VisibilityMode.ANON_COUNT ? 'Submit Anonymously' : 'Reveal Only If Mutual'}</span>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <Button fullWidth size="lg" type="submit" disabled={loading || !visibility} variant={!visibility ? 'secondary' : 'primary'}>
+            {loading ? 'Submitting...' : 'Confirm Crush'}
           </Button>
         </form>
       </Card>

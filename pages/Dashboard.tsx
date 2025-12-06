@@ -30,7 +30,7 @@ export default function Dashboard({ user, activePeriod }: { user: User, activePe
         setLoading(false);
       }
     };
-    
+
     if (user) fetchData();
   }, [user]); // Re-run if user changes
 
@@ -56,29 +56,29 @@ export default function Dashboard({ user, activePeriod }: { user: User, activePe
         </div>
         {activePeriod && (
           <Link to="/submit" className="mt-4 md:mt-0">
-             <Button variant="primary">
-               <Heart className="w-4 h-4 mr-2 fill-current" />
-               New Crush
-             </Button>
+            <Button variant="primary">
+              <Heart className="w-4 h-4 mr-2 fill-current" />
+              New Crush
+            </Button>
           </Link>
         )}
       </div>
 
       {/* Tabs */}
       <div className="flex space-x-4 border-b border-white/10 mb-8 overflow-x-auto">
-        <button 
+        <button
           onClick={() => setActiveTab('crushes')}
           className={`pb-3 px-1 font-medium transition-colors ${activeTab === 'crushes' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400 hover:text-white'}`}
         >
           My Crushes
         </button>
-        <button 
+        <button
           onClick={() => setActiveTab('matches')}
           className={`pb-3 px-1 font-medium transition-colors ${activeTab === 'matches' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400 hover:text-white'}`}
         >
           Matches <span className="ml-1 bg-brand-secondary text-white text-xs rounded-full px-2 py-0.5">{matches.length}</span>
         </button>
-        <button 
+        <button
           onClick={() => setActiveTab('likes')}
           className={`pb-3 px-1 font-medium transition-colors ${activeTab === 'likes' ? 'text-brand-primary border-b-2 border-brand-primary' : 'text-gray-400 hover:text-white'}`}
         >
@@ -116,19 +116,44 @@ export default function Dashboard({ user, activePeriod }: { user: User, activePe
                   </Card>
                 ) : (
                   myCrushes.map(crush => (
-                    <Card key={crush.id} className="flex items-center justify-between hover:bg-white/5 transition-colors">
-                      <div>
-                        <h3 className="text-xl font-bold text-white">{crush.targetNameDisplay}</h3>
-                        <p className="text-sm text-gray-400">ID: {crush.targetInstagramId}</p>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          crush.isMutual 
-                            ? 'bg-green-500/20 text-green-400 border border-green-500/30' 
-                            : 'bg-yellow-500/20 text-yellow-400 border border-yellow-500/30'
-                        }`}>
-                          {crush.isMutual ? 'MATCHED' : 'WAITING'}
-                        </span>
+                    <Card key={crush.id} className="group hover:bg-white/5 transition-colors border-l-4 border-l-transparent hover:border-l-brand-primary">
+                      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                        <div>
+                          <div className="flex items-center gap-3 mb-1">
+                            <h3 className="text-xl font-bold text-white">{crush.targetNameDisplay}</h3>
+                            <span className="text-sm text-gray-500 bg-white/5 px-2 py-0.5 rounded">{crush.targetInstagramId}</span>
+                          </div>
+
+                          <div className="flex items-center gap-2 text-sm text-gray-400">
+                            {crush.visibilityMode === 'ANON_COUNT' ? (
+                              <span className="flex items-center gap-1.5">
+                                <div className="w-1.5 h-1.5 rounded-full bg-brand-primary"></div>
+                                Submitted Anonymously
+                              </span>
+                            ) : (
+                              <span className="flex items-center gap-1.5">
+                                <div className="w-1.5 h-1.5 rounded-full bg-brand-secondary"></div>
+                                Reveal If Mutual
+                              </span>
+                            )}
+                            <span className="text-gray-600">•</span>
+                            <span>{new Date(crush.createdAt as any).toLocaleDateString()}</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center">
+                          {crush.isMutual ? (
+                            <span className="px-4 py-1.5 rounded-full text-sm font-bold bg-green-500/20 text-green-400 border border-green-500/30 shadow-[0_0_10px_rgba(34,197,94,0.2)] flex items-center gap-2">
+                              <Heart className="w-4 h-4 fill-current" />
+                              MATCHED
+                            </span>
+                          ) : (
+                            <span className="px-4 py-1.5 rounded-full text-sm font-bold bg-yellow-500/10 text-yellow-500 border border-yellow-500/20 flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-yellow-500 animate-pulse"></div>
+                              WAITING
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </Card>
                   ))
@@ -137,36 +162,36 @@ export default function Dashboard({ user, activePeriod }: { user: User, activePe
             )}
 
             {activeTab === 'matches' && (
-               <div className="space-y-4">
-                 {matches.length === 0 ? (
-                   <div className="text-center py-12">
-                     <h3 className="text-gray-400">No matches yet. Keep the faith!</h3>
-                   </div>
-                 ) : (
-                   matches.map(match => (
-                     <Card key={match.id} className="bg-gradient-to-r from-brand-primary/10 to-brand-secondary/10 border-brand-primary/30">
-                       <div className="flex flex-col items-center text-center">
-                         <div className="flex items-center justify-center gap-4 mb-4">
-                           <div className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden">
-                             <span className="text-2xl">You</span>
-                           </div>
-                           <Heart className="w-8 h-8 text-red-500 fill-red-500 animate-pulse" />
-                           <div className="w-16 h-16 rounded-full bg-brand-secondary flex items-center justify-center overflow-hidden">
-                             <span className="text-xl font-bold">{(match.userBId === user.uid ? match.userAName : match.userBName).charAt(0)}</span>
-                           </div>
-                         </div>
-                         <h3 className="text-2xl font-bold text-white mb-2">
-                           It's a Match!
-                         </h3>
-                         <p className="text-gray-300 mb-4">
-                           You and <span className="text-brand-secondary font-bold">{match.userBId === user.uid ? match.userAName : match.userBName}</span> like each other.
-                         </p>
-                         <Button variant="primary">Send Message (Coming Soon)</Button>
-                       </div>
-                     </Card>
-                   ))
-                 )}
-               </div>
+              <div className="space-y-4">
+                {matches.length === 0 ? (
+                  <div className="text-center py-12">
+                    <h3 className="text-gray-400">No matches yet. Keep the faith!</h3>
+                  </div>
+                ) : (
+                  matches.map(match => (
+                    <Card key={match.id} className="bg-gradient-to-r from-brand-primary/10 to-brand-secondary/10 border-brand-primary/30">
+                      <div className="flex flex-col items-center text-center">
+                        <div className="flex items-center justify-center gap-4 mb-4">
+                          <div className="w-16 h-16 rounded-full bg-gray-700 flex items-center justify-center overflow-hidden">
+                            <span className="text-2xl">You</span>
+                          </div>
+                          <Heart className="w-8 h-8 text-red-500 fill-red-500 animate-pulse" />
+                          <div className="w-16 h-16 rounded-full bg-brand-secondary flex items-center justify-center overflow-hidden">
+                            <span className="text-xl font-bold">{(match.userBId === user.uid ? match.userAName : match.userBName).charAt(0)}</span>
+                          </div>
+                        </div>
+                        <h3 className="text-2xl font-bold text-white mb-2">
+                          It's a Match!
+                        </h3>
+                        <p className="text-gray-300 mb-4">
+                          You and <span className="text-brand-secondary font-bold">{match.userBId === user.uid ? match.userAName : match.userBName}</span> like each other.
+                        </p>
+                        <Button variant="primary">Send Message (Coming Soon)</Button>
+                      </div>
+                    </Card>
+                  ))
+                )}
+              </div>
             )}
 
             {activeTab === 'likes' && (
@@ -176,7 +201,7 @@ export default function Dashboard({ user, activePeriod }: { user: User, activePe
                     <Eye className="w-10 h-10 text-brand-accent" />
                   </div>
                   <h3 className="text-2xl font-bold mb-2">Who likes me?</h3>
-                  
+
                   {likesCount !== null ? (
                     <div className="animate-fade-in">
                       <div className="text-6xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-brand-accent to-brand-primary mb-2">
@@ -184,7 +209,7 @@ export default function Dashboard({ user, activePeriod }: { user: User, activePe
                       </div>
                       <p className="text-gray-500 mb-2">People are crushing on you.</p>
                       <p className="text-xs text-gray-600">
-                         Their identities are hidden until they match with you.
+                        Their identities are hidden until they match with you.
                       </p>
                     </div>
                   ) : (
