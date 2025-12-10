@@ -3,50 +3,70 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     
-    // --- Helper Functions ---
+    // --- Helpers ---
     function isSignedIn() {
       return request.auth != null;
     }
     
-    // Check if the user is accessing their own user document
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    // --- Users Collection ---
-    // Users are keyed by UID for security, but contain 'instagramUsername'
+    // Verify if the current user owns the Instagram handle they are claiming to be target of
+    // This requires looking up the user's document.
+    // CAUTION: This costs 1 read per evaluation.
+    function isTargetUser(targetInstagram) {
+       let userDoc = get(/databases/$(database)/documents/users/$(request.auth.uid));
+       return userDoc.data.instagramUsername == targetInstagram;
+    }
+
+    // --- Users ---
     match /users/{userId} {
       allow read: if isSignedIn();
       allow write: if isOwner(userId);
     }
 
-    // --- Crushes Collection ---
-    // Key fields: submitterInstagram, targetInstagram, isMutual
-    // To secure this without a backend, users need to:
-    // 1. Read crushes they sent.
-    // 2. Read crushes sent TO them (to detect matches).
-    // 3. Create new crushes.
-    // 4. Update an existing crush sent TO them (to mark isMutual).
-    
-    // --- Crushes Collection ---
-    // Key fields: submitterInstagram, targetInstagram, isMutual
-    // --- Crushes Collection ---
+    // --- Crushes ---
     match /crushes/{crushId} {
-      allow create: if isSignedIn();
-      allow read: if isSignedIn();
-      allow update: if isSignedIn();
+      // Create: Only allow if submitterUserId matches the authenticated user
+      // AND prevent setting 'isMutual' to true on creation (must begin as false)
+      allow create: if isSignedIn() 
+        && request.resource.data.submitterUserId == request.auth.uid
+        && request.resource.data.isMutual == false
+        && request.resource.data.status == 'pending';
+
+      // Read: Allow if I am the submitter OR I am the target
+      allow read: if isSignedIn() && (
+        resource.data.submitterUserId == request.auth.uid || 
+        isTargetUser(resource.data.targetInstagram)
+      );
+
+      // Update: 
+      // User can ONLY update 'withdrawn' status (to withdraw a crush).
+      // User CANNOT update 'isMutual', 'status', 'periodId', names, or handles.
+      // Cloud Function (Admin SDK) bypasses these rules automatically.
+      allow update: if isSignedIn() 
+        && resource.data.submitterUserId == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['withdrawn'])
+        && request.resource.data.isMutual == resource.data.isMutual; // redundancy check
     }
 
-    // --- Matches Collection ---
+    // --- Matches ---
     match /matches/{matchId} {
-       allow read: if isSignedIn();
-       allow create, update: if isSignedIn();
+       // Read: Allow if I am one of the parties
+       allow read: if isSignedIn() && (
+         resource.data.userAInstagram == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.instagramUsername ||
+         resource.data.userBInstagram == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.instagramUsername
+       );
+       
+       // Write: NO ONE. Only Admin SDK (Cloud Functions) can create/update matches.
+       allow create, update, delete: if false; 
     }
     
-    // --- Periods Collection ---
+    // --- Periods ---
     match /periods/{periodId} {
       allow read: if true;
-      allow write: if false; // Admin only usually
+      allow write: if false;
     }
   }
 }
