@@ -30,8 +30,13 @@ export const onCrushCreated = functions.firestore
         }
 
         const seasonId = newCrush.periodId;
-        const submitterInsta = newCrush.submitterInstagram;
-        const targetInsta = newCrush.targetInstagram;
+        const submitterInsta = newCrush.submitterInstagram.toLowerCase().trim();
+        const targetInsta = newCrush.targetInstagram.toLowerCase().trim();
+
+        if (submitterInsta === targetInsta) {
+            console.log(`Self-match attempt detected: ${submitterInsta}. Ignoring.`);
+            return null;
+        }
 
         console.log(`Processing crush: ${submitterInsta} -> ${targetInsta} (Season: ${seasonId})`);
 

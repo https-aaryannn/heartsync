@@ -30,6 +30,7 @@ export interface Crush {
   submitterName: string; // useful display
   submitterInstagram: string; // The KEY field requested
   targetInstagram: string; // The KEY field requested
+  targetName: string; // Added for UI consistency
   targetNameDisplay: string;
   visibilityMode: VisibilityMode;
   periodId: string;
