@@ -468,3 +468,20 @@ export const getAdminStats = async (periodId: string): Promise<PeriodStats> => {
     dailySubmissions: []
   };
 };
+
+export const fetchStats = async (token?: string) => {
+  const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+  const url = `https://us-central1-${projectId}.cloudfunctions.net/getStats`;
+
+  const headers: HeadersInit = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const res = await fetch(url, { headers });
+  if (!res.ok) {
+    console.error("Stats fetch error", await res.text());
+    throw new Error('Failed to fetch stats');
+  }
+  return res.json();
+};

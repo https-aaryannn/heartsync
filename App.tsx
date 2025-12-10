@@ -11,6 +11,8 @@ import Landing from './pages/Landing';
 import Dashboard from './pages/Dashboard';
 import SubmitCrush from './pages/SubmitCrush';
 import Admin from './pages/Admin';
+import AdminAnalytics from './pages/AdminAnalytics';
+
 import Login from './pages/Login';
 
 // Components
@@ -18,11 +20,10 @@ const Navbar = ({ user, isAdmin }: { user: User | null, isAdmin: boolean }) => {
   const [isOpen, setIsOpen] = useState(false);
   const location = useLocation();
 
-  const navLinkClass = (path: string) => 
-    `block px-3 py-2 rounded-md text-sm font-medium transition-colors ${
-      location.pathname === path 
-        ? 'bg-brand-primary text-white' 
-        : 'text-gray-300 hover:bg-brand-surface hover:text-white'
+  const navLinkClass = (path: string) =>
+    `block px-3 py-2 rounded-md text-sm font-medium transition-colors ${location.pathname === path
+      ? 'bg-brand-primary text-white'
+      : 'text-gray-300 hover:bg-brand-surface hover:text-white'
     }`;
 
   return (
@@ -32,10 +33,10 @@ const Navbar = ({ user, isAdmin }: { user: User | null, isAdmin: boolean }) => {
           {/* Logo */}
           <Link to="/" className="flex items-center space-x-2 group">
             <div className="relative">
-               <Heart className="h-8 w-8 text-brand-secondary fill-brand-secondary transition-transform group-hover:scale-110" />
-               <div className="absolute inset-0 flex items-center justify-center">
-                 <div className="h-2 w-2 bg-white rounded-full animate-pulse" />
-               </div>
+              <Heart className="h-8 w-8 text-brand-secondary fill-brand-secondary transition-transform group-hover:scale-110" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="h-2 w-2 bg-white rounded-full animate-pulse" />
+              </div>
             </div>
             <span className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-brand-secondary to-brand-primary">
               Heartsync
@@ -66,7 +67,7 @@ const Navbar = ({ user, isAdmin }: { user: User | null, isAdmin: boolean }) => {
                   <UserIcon className="h-4 w-4" />
                   <span className="text-sm">{user.displayName}</span>
                 </div>
-                <button 
+                <button
                   onClick={() => auth.signOut()}
                   className="text-gray-400 hover:text-red-400 transition-colors p-2 rounded-full hover:bg-white/5"
                   title="Sign Out"
@@ -75,11 +76,11 @@ const Navbar = ({ user, isAdmin }: { user: User | null, isAdmin: boolean }) => {
                 </button>
               </div>
             ) : (
-               <Link to="/login" className="hidden md:block text-sm font-medium text-brand-primary hover:text-brand-secondary">
-                 Log In
-               </Link>
+              <Link to="/login" className="hidden md:block text-sm font-medium text-brand-primary hover:text-brand-secondary">
+                Log In
+              </Link>
             )}
-            
+
             <div className="-mr-2 flex md:hidden">
               <button
                 onClick={() => setIsOpen(!isOpen)}
@@ -173,20 +174,25 @@ const AppContent = () => {
         <Routes>
           <Route path="/" element={<Landing activePeriod={activePeriod} />} />
           <Route path="/login" element={!user ? <Login /> : <Navigate to="/dashboard" />} />
-          
-          <Route 
-            path="/dashboard" 
-            element={user ? <Dashboard user={user} activePeriod={activePeriod} /> : <Navigate to="/login" />} 
+
+          <Route
+            path="/dashboard"
+            element={user ? <Dashboard user={user} activePeriod={activePeriod} /> : <Navigate to="/login" />}
           />
-          
-          <Route 
-            path="/submit" 
-            element={user ? <SubmitCrush user={user} activePeriod={activePeriod} /> : <Navigate to="/login" />} 
+
+          <Route
+            path="/submit"
+            element={user ? <SubmitCrush user={user} activePeriod={activePeriod} /> : <Navigate to="/login" />}
           />
-          
-          <Route 
-            path="/admin" 
-            element={user && isAdmin ? <Admin activePeriod={activePeriod} /> : <Navigate to="/" />} 
+
+          <Route
+            path="/admin"
+            element={user && isAdmin ? <Admin activePeriod={activePeriod} /> : <Navigate to="/" />}
+          />
+
+          <Route
+            path="/admin/analytics"
+            element={user && isAdmin ? <AdminAnalytics user={user} /> : <Navigate to="/" />}
           />
         </Routes>
       </main>
