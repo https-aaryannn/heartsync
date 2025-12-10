@@ -14,12 +14,13 @@ export default function Dashboard({ user, activePeriod }: { user: User, activePe
 
   // Real-time Data Subscription
   useEffect(() => {
-    if (!user || !user.instagramUsername) return;
+    if (!user || !user.instagramUsername || !activePeriod) return;
 
     setLoading(true);
 
     const unsubscribeMatches = subscribeToMyMatches(
       user.instagramUsername,
+      activePeriod.id,
       (matches) => {
         setMatches(matches);
         setLoading(false); // First load done

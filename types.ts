@@ -36,6 +36,7 @@ export interface Crush {
   createdAt: number;
   withdrawn: boolean;
   isMutual: boolean;
+  status: 'pending' | 'matched';
   flagged?: boolean;
 }
 

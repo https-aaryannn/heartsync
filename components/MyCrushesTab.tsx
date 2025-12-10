@@ -15,12 +15,13 @@ export default function MyCrushesTab({ user, activePeriod }: MyCrushesTabProps) 
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        if (!user || !user.instagramUsername) return;
+        if (!user || !user.instagramUsername || !activePeriod) return;
 
         setLoading(true);
 
         const unsubscribe = subscribeToMyCrushes(
             user.instagramUsername,
+            activePeriod.id,
             (crushes) => {
                 setMyCrushes(crushes);
                 setLoading(false);

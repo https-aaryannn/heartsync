@@ -30,22 +30,17 @@ service cloud.firestore {
     
     // --- Crushes Collection ---
     // Key fields: submitterInstagram, targetInstagram, isMutual
+    // --- Crushes Collection ---
     match /crushes/{crushId} {
       allow create: if isSignedIn();
-      // Allow read: Authenticated users can read (client filters by own visibility)
-      // This is required because rules cannot easily verify 'submitterInstagram' == auth.user without custom claims.
       allow read: if isSignedIn();
-      
-      // Allow update: 
-      // 1. I can withdraw my crush (owner).
-      // 2. I can mark a crush sent TO me as 'isMutual' (target).
       allow update: if isSignedIn();
     }
 
     // --- Matches Collection ---
     match /matches/{matchId} {
-       // Allow read/create if I am one of the parties.
-       allow read, create: if isSignedIn();
+       allow read: if isSignedIn();
+       allow create, update: if isSignedIn();
     }
     
     // --- Periods Collection ---

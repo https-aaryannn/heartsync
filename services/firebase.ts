@@ -24,7 +24,9 @@ import {
   serverTimestamp,
   Timestamp,
   or,
-  onSnapshot
+  and,
+  onSnapshot,
+  writeBatch
 } from 'firebase/firestore';
 import { UserProfile, Crush, Period, VisibilityMode, Match, PeriodStats } from '../types';
 
@@ -183,6 +185,87 @@ export const createPeriod = async (period: Omit<Period, 'id'>) => {
   return { ...period, id: docRef.id };
 };
 
+// Helper function to check and process mutual crushes
+export const checkForMutualCrush = async (
+  submitterInstagram: string,
+  targetInstagram: string,
+  seasonId: string,
+  newCrushRef: any // DocumentReference
+) => {
+  const myUsername = normalizeId(submitterInstagram);
+  const targetUsername = normalizeId(targetInstagram);
+
+  // a) Query for reverse entry in SAME season
+  const reverseQuery = query(
+    collection(db, 'crushes'),
+    where('periodId', '==', seasonId),
+    where('submitterInstagram', '==', targetUsername),
+    where('targetInstagram', '==', myUsername),
+    where('withdrawn', '==', false)
+  );
+
+  const reverseSnapshot = await getDocs(reverseQuery);
+
+  // b) If match found
+  if (!reverseSnapshot.empty) {
+    const reverseDoc = reverseSnapshot.docs[0];
+    const batch = writeBatch(db);
+
+    // Update existing reverse crush
+    batch.update(reverseDoc.ref, {
+      status: 'matched',
+      isMutual: true
+    });
+
+    // Update new crush
+    batch.update(newCrushRef, {
+      status: 'matched',
+      isMutual: true
+    });
+
+    // Create match document
+    const ids = [myUsername, targetUsername].sort();
+    const matchId = `${seasonId}_${ids[0]}_${ids[1]}`;
+    const matchRef = doc(db, 'matches', matchId);
+
+    // We need names for the match doc. 
+    // We can fetch them or assume them. 
+    // For now, we'll try to use data from the reverse doc for the partner's name.
+    const reverseData = reverseDoc.data();
+
+    // We need to fetch the "new crush" data to get the current submitter's name effectively, 
+    // or pass it in. newCrushRef is just a ref.
+    // Let's assume we can get it from the args if we passed full objects, 
+    // but the prompt says: checkForMutualCrush(submitterInstagram, targetInstagram, seasonId, newCrushRef)
+    // accessible names will be tricky without reading. 
+    // Let's read the new crush doc quickly or pass names? 
+    // The prompt signature is strict.
+    // Let's read the new crush doc to get the name.
+
+    const newCrushSnap = await getDoc(newCrushRef);
+    const newCrushData = newCrushSnap.data();
+
+    if (newCrushData) {
+      const userAName = ids[0] === myUsername ? newCrushData.submitterName : (reverseData as any).submitterName;
+      const userBName = ids[1] === myUsername ? newCrushData.submitterName : (reverseData as any).submitterName;
+
+      batch.set(matchRef, {
+        userAInstagram: ids[0],
+        userBInstagram: ids[1],
+        userAName,
+        userBName,
+        periodId: seasonId,
+        createdAt: serverTimestamp()
+      });
+
+      await batch.commit();
+      return true; // Match found
+    }
+  }
+
+  return false; // No match
+};
+
 export const submitCrush = async (
   submitter: UserProfile,
   targetName: string,
@@ -198,81 +281,69 @@ export const submitCrush = async (
     throw new Error("You cannot submit a crush on yourself.");
   }
 
-  return await runTransaction(db, async (transaction) => {
-    // 1. Idempotency Check
-    const myExistingCrushQuery = query(
-      collection(db, 'crushes'),
-      where('periodId', '==', periodId),
-      where('submitterInstagram', '==', myUsername),
-      where('targetInstagram', '==', normalizedTarget),
-      where('withdrawn', '==', false)
-    );
-    const myExistingRes = await getDocs(myExistingCrushQuery);
-    if (!myExistingRes.empty) {
-      return { success: true, matchFound: myExistingRes.docs[0].data().isMutual, message: 'Already submitted' };
-    }
+  // Check for existing crush (Idempotency) - handled nicely by just checking if we already submitted
+  const myExistingCrushQuery = query(
+    collection(db, 'crushes'),
+    where('periodId', '==', periodId),
+    where('submitterInstagram', '==', myUsername),
+    where('targetInstagram', '==', normalizedTarget),
+    where('withdrawn', '==', false)
+  );
 
-    // 2. Mutual Check (Opposite Crush)
-    const oppositeCrushQuery = query(
-      collection(db, 'crushes'),
-      where('periodId', '==', periodId),
-      where('submitterInstagram', '==', normalizedTarget),
-      where('targetInstagram', '==', myUsername),
-      where('withdrawn', '==', false)
-    );
+  const myExistingRes = await getDocs(myExistingCrushQuery);
+  if (!myExistingRes.empty) {
+    const data = myExistingRes.docs[0].data(); // Cast to Crush if needed
+    // Return existing status
+    return { success: true, matchFound: data.isMutual || data.status === 'matched', message: 'Already submitted' };
+  }
 
-    const oppositeRes = await getDocs(oppositeCrushQuery);
-    const isMutual = !oppositeRes.empty;
+  // 1. Save the crush document
+  const newCrushRef = doc(collection(db, 'crushes'));
+  const newCrushData: any = {
+    // id will be doc.id implicitly when reading, specific schema request:
+    seasonId: periodId, // Requested 'seasonId' but code uses 'periodId'. I will add seasonId as alias or switch to it if requested schema is strict. 
+    // The user said: "seasonId", "submitterInstagram", etc.
+    // Existing code uses 'periodId'. I should probably support both or switch.
+    // I will add 'seasonId' to match the schema request, and keep 'periodId' for app compatibility if needed, 
+    // OR assuming 'periodId' IS 'seasonId'. 
+    // The prompt schema: "seasonId". 
+    // I'll use 'seasonId' AND 'periodId' to be safe for existing UI, or just 'seasonId' if I update UI.
+    // To be safe and minimal changes to UI, I will keep 'periodId' and add 'seasonId'.
+    periodId: periodId,
+    periodId: periodId,
+    // seasonId handled above
 
-    // 3. Create NEW Crush
-    const newCrushRef = doc(collection(db, 'crushes'));
-    const newCrushData = {
-      submitterUserId: submitter.uid,
-      submitterName: submitter.displayName || 'Anonymous',
-      submitterInstagram: myUsername, // New Key
-      targetName: targetName.toLowerCase().trim(),
-      targetNameDisplay: targetNameDisplay.trim(),
-      targetInstagram: normalizedTarget, // New Key
-      visibilityMode,
-      periodId,
-      createdAt: serverTimestamp(),
-      withdrawn: false,
-      isMutual: isMutual,
-    };
-    transaction.set(newCrushRef, newCrushData);
+    submitterInstagram: myUsername,
+    submitterName: submitter.displayName || 'Anonymous',
 
-    // 4. If Mutual, update THEIR crush and create MATCH
-    if (isMutual) {
-      const theirCrushDoc = oppositeRes.docs[0];
-      transaction.update(theirCrushDoc.ref, { isMutual: true });
+    targetInstagram: normalizedTarget,
+    targetName: targetName.toLowerCase().trim(), // Storing for search/display
+    targetNameDisplay: targetNameDisplay.trim(), // UI display
 
-      // Create Match Record
-      const ids = [myUsername, normalizedTarget].sort();
-      const matchId = `${periodId}_${ids[0]}_${ids[1]}`;
-      const matchRef = doc(db, 'matches', matchId);
+    visibilityMode,
+    createdAt: serverTimestamp(),
+    status: 'pending',
+    isMutual: false,
+    withdrawn: false,
+    submitterUserId: submitter.uid // Keeping for security rules references
+  };
 
-      transaction.set(matchRef, {
-        userAInstagram: ids[0],
-        userBInstagram: ids[1],
-        userAName: ids[0] === myUsername ? (submitter.displayName || 'Me') : theirCrushDoc.data().submitterName,
-        userBName: ids[1] === myUsername ? (submitter.displayName || 'Me') : theirCrushDoc.data().submitterName,
-        periodId,
-        createdAt: serverTimestamp()
-      });
-    }
+  await setDoc(newCrushRef, newCrushData);
 
-    return { success: true, matchFound: isMutual };
-  });
+  // 2. Run checkForMutualCrush
+  const isMatch = await checkForMutualCrush(myUsername, normalizedTarget, periodId, newCrushRef);
+
+  return { success: true, matchFound: isMatch };
 };
 
 
-export const subscribeToMyCrushes = (username: string, onUpdate: (crushes: Crush[]) => void, onError: (error: any) => void) => {
+export const subscribeToMyCrushes = (username: string, periodId: string, onUpdate: (crushes: Crush[]) => void, onError: (error: any) => void) => {
   const norm = normalizeId(username);
   const q = query(
     collection(db, 'crushes'),
     where('submitterInstagram', '==', norm),
+    where('seasonId', '==', periodId),
     where('withdrawn', '==', false)
-    // orderBy('createdAt', 'desc') // Checking if index is missing causing empty results
   );
 
   return onSnapshot(q, (snapshot) => {
@@ -289,13 +360,16 @@ export const subscribeToMyCrushes = (username: string, onUpdate: (crushes: Crush
   }, onError);
 };
 
-export const subscribeToMyMatches = (username: string, onUpdate: (matches: Match[]) => void, onError: (error: any) => void) => {
+export const subscribeToMyMatches = (username: string, periodId: string, onUpdate: (matches: Match[]) => void, onError: (error: any) => void) => {
   const norm = normalizeId(username);
   const q = query(
     collection(db, 'matches'),
-    or(
-      where('userAInstagram', '==', norm),
-      where('userBInstagram', '==', norm)
+    and(
+      where('periodId', '==', periodId),
+      or(
+        where('userAInstagram', '==', norm),
+        where('userBInstagram', '==', norm)
+      )
     )
   );
 
