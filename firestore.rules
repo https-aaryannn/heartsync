@@ -42,11 +42,11 @@ service cloud.firestore {
       );
 
       // Update: 
-      // 1. Submitter can withdraw.
-      // 2. TARGET can mark as matched (Client-side matching for Spark Plan).
+      // 1. Submitter can withdraw OR mark as matched (if mutual found).
+      // 2. TARGET can mark as matched (Client-side matching).
       allow update: if isSignedIn() && (
-        (resource.data.submitterUserId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['withdrawn'])) ||
-        (isTargetUser(resource.data.targetInstagram) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'isMutual']))
+        (resource.data.submitterUserId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['withdrawn', 'status', 'isMutual', 'matchedAt'])) ||
+        (isTargetUser(resource.data.targetInstagram) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'isMutual', 'matchedAt']))
       );
     }
 

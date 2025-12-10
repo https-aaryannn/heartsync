@@ -88,7 +88,7 @@ export default function MyCrushesTab({ user, activePeriod }: MyCrushesTabProps) 
                             </div>
 
                             <div className="flex items-center">
-                                {crush.isMutual ? (
+                                {crush.isMutual || crush.status === 'matched' ? (
                                     <span className="px-4 py-1.5 rounded-full text-sm font-bold bg-green-500/20 text-green-400 border border-green-500/30 shadow-[0_0_10px_rgba(34,197,94,0.2)] flex items-center gap-2">
                                         <Heart className="w-4 h-4 fill-current" />
                                         Matched ❤️

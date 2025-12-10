@@ -221,18 +221,27 @@ export const checkForMutualCrush = async (
     const ids = [myUsername, targetUsername].sort();
     const matchId = `${seasonId}_${ids[0]}_${ids[1]}`;
     const matchRef = doc(db, 'matches', matchId);
-    const matchDocSnapshot = await getDoc(matchRef);
+
+    // Use query to safely check existence without triggering permission errors on missing docs
+    // (Rules require verifying data fields, which fail if doc is missing)
+    const matchExistsQuery = query(
+      collection(db, 'matches'),
+      where('periodId', '==', seasonId),
+      where('userAInstagram', '==', ids[0]),
+      where('userBInstagram', '==', ids[1])
+    );
+    const matchExistsSnap = await getDocs(matchExistsQuery);
 
     const batch = writeBatch(db);
 
-    // 1. Update existing reverse crush (User B's crush) - Rules allow this now because I am the target!
+    // 1. Update existing reverse crush (User B's crush)
     batch.update(reverseDoc.ref, {
       status: 'matched',
       isMutual: true,
       matchedAt: serverTimestamp()
     });
 
-    // 2. Update MY new crush (User A's crush) - I own this
+    // 2. Update MY new crush (User A's crush)
     if (newCrushRef) {
       batch.update(newCrushRef, {
         status: 'matched',
@@ -242,11 +251,8 @@ export const checkForMutualCrush = async (
     }
 
     // 3. Create Match Document if it doesn't exist
-    if (!matchDocSnapshot.exists()) {
+    if (matchExistsSnap.empty) {
       // Determine names for the match document
-      // ids[0] is userA, ids[1] is userB
-      // One is me (submitterName), one is them (reverseData.submitterName)
-
       const isUserA_Me = ids[0] === myUsername;
 
       batch.set(matchRef, {
