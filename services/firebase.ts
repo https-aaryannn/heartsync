@@ -191,6 +191,7 @@ export const createPeriod = async (period: Omit<Period, 'id'>) => {
 // Helper function to check and process mutual crushes (Client-Side Logic)
 export const checkForMutualCrush = async (
   submitterInstagram: string,
+  submitterName: string,
   targetInstagram: string,
   seasonId: string,
   newCrushRef?: any // Optional ref to update my own crush immediately
@@ -204,7 +205,9 @@ export const checkForMutualCrush = async (
     where('periodId', '==', seasonId),
     where('submitterInstagram', '==', targetUsername),
     where('targetInstagram', '==', myUsername),
-    where('withdrawn', '==', false)
+    where('withdrawn', '==', false),
+    // Only match if not already matched to avoid duplicate triggers or logic issues
+    where('isMutual', '==', false)
   );
 
   const reverseSnapshot = await getDocs(reverseQuery);
@@ -213,56 +216,48 @@ export const checkForMutualCrush = async (
   if (!reverseSnapshot.empty) {
     const reverseDoc = reverseSnapshot.docs[0];
     const reverseData = reverseDoc.data();
+
+    // Check if match document already exists (Idempotency)
+    const ids = [myUsername, targetUsername].sort();
+    const matchId = `${seasonId}_${ids[0]}_${ids[1]}`;
+    const matchRef = doc(db, 'matches', matchId);
+    const matchDocSnapshot = await getDoc(matchRef);
+
     const batch = writeBatch(db);
 
     // 1. Update existing reverse crush (User B's crush) - Rules allow this now because I am the target!
     batch.update(reverseDoc.ref, {
       status: 'matched',
-      isMutual: true
+      isMutual: true,
+      matchedAt: serverTimestamp()
     });
 
     // 2. Update MY new crush (User A's crush) - I own this
     if (newCrushRef) {
       batch.update(newCrushRef, {
         status: 'matched',
-        isMutual: true
+        isMutual: true,
+        matchedAt: serverTimestamp()
       });
     }
 
-    // 3. Create Match Document
-    const ids = [myUsername, targetUsername].sort();
-    const matchId = `${seasonId}_${ids[0]}_${ids[1]}`;
-    const matchRef = doc(db, 'matches', matchId);
+    // 3. Create Match Document if it doesn't exist
+    if (!matchDocSnapshot.exists()) {
+      // Determine names for the match document
+      // ids[0] is userA, ids[1] is userB
+      // One is me (submitterName), one is them (reverseData.submitterName)
 
-    // We need names.
-    // My name is in `newCrushRef` (if passed) or likely known. 
-    // Partner name is in `reverseData.submitterName`.
-    let userAName = 'Unknown';
-    let userBName = 'Unknown';
+      const isUserA_Me = ids[0] === myUsername;
 
-    // We can't easily read newCrushRef inside here synchronously without fetching.
-    // However, for the match document, names are nice to have.
-    // Let's assume the UI will handle name display if missing, or we fetch.
-    // Optimization: Just set IDs and periodId.
-
-    // Attempt to get submitter name from args if possible? 
-    // We'll rely on the reverseData for partner. 
-    // For "Me", we don't have it explicitly passed here. 
-    // We will just write basic data and let the UI resolve names from profiles if needed, 
-    // OR we do a quick read of our own doc.
-
-    // Actually, `submitCrush` calls this. `submitCrush` has the `submitter` object!
-    // Let's update the signature of `checkForMutualCrush` to accept `submitterName`.
-
-    batch.set(matchRef, {
-      userAInstagram: ids[0],
-      userBInstagram: ids[1],
-      // Logic to assign correct names roughly
-      userAName: ids[0] === myUsername ? 'You' : (reverseData as any).submitterName,
-      userBName: ids[1] === myUsername ? 'You' : (reverseData as any).submitterName,
-      periodId: seasonId,
-      createdAt: serverTimestamp()
-    });
+      batch.set(matchRef, {
+        userAInstagram: ids[0],
+        userBInstagram: ids[1],
+        userAName: isUserA_Me ? submitterName : (reverseData.submitterName || 'Unknown'),
+        userBName: isUserA_Me ? (reverseData.submitterName || 'Unknown') : submitterName,
+        periodId: seasonId,
+        createdAt: serverTimestamp()
+      });
+    }
 
     await batch.commit();
     return true;
@@ -335,7 +330,13 @@ export const submitCrush = async (
   await setDoc(newCrushRef, newCrushData);
 
   // 2. Check for mutual match (Client-Side Write enabled)
-  const isMatch = await checkForMutualCrush(myUsername, normalizedTarget, periodId, newCrushRef);
+  const isMatch = await checkForMutualCrush(
+    myUsername,
+    submitter.displayName || 'Anonymous',
+    normalizedTarget,
+    periodId,
+    newCrushRef
+  );
 
   return { success: true, matchFound: isMatch };
 };
