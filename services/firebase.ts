@@ -188,10 +188,12 @@ export const createPeriod = async (period: Omit<Period, 'id'>) => {
 // Helper function to check and process mutual crushes
 // Helper function to check mutual crushes (READ-ONLY)
 // The actual matching and database updates are handled by Cloud Functions
+// Helper function to check and process mutual crushes (Client-Side Logic)
 export const checkForMutualCrush = async (
   submitterInstagram: string,
   targetInstagram: string,
-  seasonId: string
+  seasonId: string,
+  newCrushRef?: any // Optional ref to update my own crush immediately
 ) => {
   const myUsername = normalizeId(submitterInstagram);
   const targetUsername = normalizeId(targetInstagram);
@@ -209,7 +211,61 @@ export const checkForMutualCrush = async (
 
   // b) If match found
   if (!reverseSnapshot.empty) {
-    return true; // Match found (Cloud function will process it)
+    const reverseDoc = reverseSnapshot.docs[0];
+    const reverseData = reverseDoc.data();
+    const batch = writeBatch(db);
+
+    // 1. Update existing reverse crush (User B's crush) - Rules allow this now because I am the target!
+    batch.update(reverseDoc.ref, {
+      status: 'matched',
+      isMutual: true
+    });
+
+    // 2. Update MY new crush (User A's crush) - I own this
+    if (newCrushRef) {
+      batch.update(newCrushRef, {
+        status: 'matched',
+        isMutual: true
+      });
+    }
+
+    // 3. Create Match Document
+    const ids = [myUsername, targetUsername].sort();
+    const matchId = `${seasonId}_${ids[0]}_${ids[1]}`;
+    const matchRef = doc(db, 'matches', matchId);
+
+    // We need names.
+    // My name is in `newCrushRef` (if passed) or likely known. 
+    // Partner name is in `reverseData.submitterName`.
+    let userAName = 'Unknown';
+    let userBName = 'Unknown';
+
+    // We can't easily read newCrushRef inside here synchronously without fetching.
+    // However, for the match document, names are nice to have.
+    // Let's assume the UI will handle name display if missing, or we fetch.
+    // Optimization: Just set IDs and periodId.
+
+    // Attempt to get submitter name from args if possible? 
+    // We'll rely on the reverseData for partner. 
+    // For "Me", we don't have it explicitly passed here. 
+    // We will just write basic data and let the UI resolve names from profiles if needed, 
+    // OR we do a quick read of our own doc.
+
+    // Actually, `submitCrush` calls this. `submitCrush` has the `submitter` object!
+    // Let's update the signature of `checkForMutualCrush` to accept `submitterName`.
+
+    batch.set(matchRef, {
+      userAInstagram: ids[0],
+      userBInstagram: ids[1],
+      // Logic to assign correct names roughly
+      userAName: ids[0] === myUsername ? 'You' : (reverseData as any).submitterName,
+      userBName: ids[1] === myUsername ? 'You' : (reverseData as any).submitterName,
+      periodId: seasonId,
+      createdAt: serverTimestamp()
+    });
+
+    await batch.commit();
+    return true;
   }
 
   return false; // No match
@@ -278,8 +334,8 @@ export const submitCrush = async (
 
   await setDoc(newCrushRef, newCrushData);
 
-  // 2. Check for mutual match (Read-only prediction)
-  const isMatch = await checkForMutualCrush(myUsername, normalizedTarget, periodId);
+  // 2. Check for mutual match (Client-Side Write enabled)
+  const isMatch = await checkForMutualCrush(myUsername, normalizedTarget, periodId, newCrushRef);
 
   return { success: true, matchFound: isMatch };
 };

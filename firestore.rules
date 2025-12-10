@@ -42,13 +42,12 @@ service cloud.firestore {
       );
 
       // Update: 
-      // User can ONLY update 'withdrawn' status (to withdraw a crush).
-      // User CANNOT update 'isMutual', 'status', 'periodId', names, or handles.
-      // Cloud Function (Admin SDK) bypasses these rules automatically.
-      allow update: if isSignedIn() 
-        && resource.data.submitterUserId == request.auth.uid
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['withdrawn'])
-        && request.resource.data.isMutual == resource.data.isMutual; // redundancy check
+      // 1. Submitter can withdraw.
+      // 2. TARGET can mark as matched (Client-side matching for Spark Plan).
+      allow update: if isSignedIn() && (
+        (resource.data.submitterUserId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['withdrawn'])) ||
+        (isTargetUser(resource.data.targetInstagram) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'isMutual']))
+      );
     }
 
     // --- Matches ---
@@ -59,8 +58,11 @@ service cloud.firestore {
          resource.data.userBInstagram == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.instagramUsername
        );
        
-       // Write: NO ONE. Only Admin SDK (Cloud Functions) can create/update matches.
-       allow create, update, delete: if false; 
+       // Write: Allow if I am one of the parties (Client-side matching support)
+       allow create: if isSignedIn() && (
+         request.resource.data.userAInstagram == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.instagramUsername ||
+         request.resource.data.userBInstagram == get(/databases/$(database)/documents/users/$(request.auth.uid)).data.instagramUsername
+       );
     }
     
     // --- Periods ---
