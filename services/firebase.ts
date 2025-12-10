@@ -234,7 +234,7 @@ export const submitCrush = async (
   const myExistingCrushQuery = query(
     collection(db, 'crushes'),
     where('periodId', '==', periodId),
-    where('submitterInstagram', '==', myUsername),
+    where('submitterUserId', '==', submitter.uid), // Updated: Secure filter required by rules
     where('targetInstagram', '==', normalizedTarget),
     where('withdrawn', '==', false)
   );
@@ -285,11 +285,10 @@ export const submitCrush = async (
 };
 
 
-export const subscribeToMyCrushes = (username: string, periodId: string, onUpdate: (crushes: Crush[]) => void, onError: (error: any) => void) => {
-  const norm = normalizeId(username);
+export const subscribeToMyCrushes = (userId: string, periodId: string, onUpdate: (crushes: Crush[]) => void, onError: (error: any) => void) => {
   const q = query(
     collection(db, 'crushes'),
-    where('submitterInstagram', '==', norm),
+    where('submitterUserId', '==', userId), // Updated: Secure filter
     where('seasonId', '==', periodId),
     where('withdrawn', '==', false)
   );
@@ -331,11 +330,10 @@ export const subscribeToMyMatches = (username: string, periodId: string, onUpdat
   }, onError);
 };
 
-export const getMyCrushes = async (username: string) => {
-  const norm = normalizeId(username);
+export const getMyCrushes = async (userId: string) => {
   const q = query(
     collection(db, 'crushes'),
-    where('submitterInstagram', '==', norm),
+    where('submitterUserId', '==', userId), // Updated: Secure filter
     where('withdrawn', '==', false)
     // orderBy('createdAt', 'desc')
   );

@@ -20,7 +20,7 @@ export default function MyCrushesTab({ user, activePeriod }: MyCrushesTabProps) 
         setLoading(true);
 
         const unsubscribe = subscribeToMyCrushes(
-            user.instagramUsername,
+            user.uid,
             activePeriod.id,
             (crushes) => {
                 setMyCrushes(crushes);
