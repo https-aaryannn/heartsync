@@ -82,7 +82,7 @@ export const onCrushCreated = functions.firestore
             // Deterministic ID for idempotency: seasonId_userA_userB (alphabetical)
             const users = [submitterInsta, targetInsta].sort();
             const matchId = `${seasonId}_${users[0]}_${users[1]}`;
-            const matchRef = db.collection('matches').document(matchId);
+            const matchRef = db.collection('matches').doc(matchId);
 
             const matchDoc = await transaction.get(matchRef);
             if (!matchDoc.exists) {
@@ -95,5 +95,7 @@ export const onCrushCreated = functions.firestore
                     createdAt: admin.firestore.FieldValue.serverTimestamp()
                 });
             }
+
+            return null; // Return value for transaction
         });
     });
