@@ -5,8 +5,9 @@ Heartsync is a modern web app that helps people discover mutual crushes without 
 You add your Instagram username, list your crushes privately, and only if both people pick each other…
 ✨ It's a match!
 
-🚀 Features
-🔐 Anonymous & Safe<img width="1920" height="1597" alt="pag1" src="https://github.com/user-attachments/assets/9ab0f70e-ed47-4fae-9c77-04ba4a7abea9" />
+🚀 Features<img width="1080" height="1080" alt="pdf" src="https://github.com/user-attachments/assets/0f041d4e-9f62-4760-bac0-07b5a7f0a9f7" />
+
+🔐 Anonymous & Safe
 
 
 Your Instagram username is used only to detect matches.
@@ -18,6 +19,7 @@ We never ask for passwords or private data.
 Your crush will only know you like them if they like you back.
 
 Zero embarrassment, zero risk.
+
 
 ⚡ Fast & Lightweight
 
@@ -77,10 +79,8 @@ npm run dev
 
 🖼️ Screenshots
 
-(Add your app screenshots here)
+![Home Page]<img width="1920" height="1597" alt="pag1" src="https://github.com/user-attachments/assets/aec50c5d-ac0a-48e3-bebb-077ad2acfd72" />
 
-![Heartsync Logo](./assets/logo.png)
-![Home Page](./assets/home.png)
 
 🔮 Roadmap
 
