@@ -23,7 +23,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
     return result;
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.recomputeStats = exports.getStats = exports.onMatchCreatedUpdateStats = exports.onCrushCreatedUpdateStats = exports.onUserCreatedStats = exports.onCrushCreated = void 0;
+exports.checkVibe = exports.recomputeStats = exports.getStats = exports.onMatchCreatedUpdateStats = exports.onCrushCreatedUpdateStats = exports.onUserCreatedStats = exports.onCrushCreated = void 0;
 const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
 admin.initializeApp();
@@ -300,5 +300,39 @@ exports.recomputeStats = functions.https.onRequest(async (req, res) => {
         updatedAt: admin.firestore.FieldValue.serverTimestamp()
     }, { merge: true });
     res.json({ success: true, message: "Stats recomputed" });
+});
+exports.checkVibe = functions.https.onRequest(async (req, res) => {
+    // Enable CORS
+    res.set('Access-Control-Allow-Origin', '*');
+    if (req.method === 'OPTIONS') {
+        res.set('Access-Control-Allow-Methods', 'POST'); // POST for passing body
+        res.set('Access-Control-Allow-Headers', 'Content-Type');
+        res.status(204).send('');
+        return;
+    }
+    if (req.method !== 'POST') {
+        res.status(405).send('Method Not Allowed');
+        return;
+    }
+    try {
+        const { username, periodId } = req.body;
+        if (!username || !periodId) {
+            res.status(400).json({ error: "Missing required fields: username, periodId" });
+            return;
+        }
+        const normalized = username.trim().toLowerCase().replace(/^@/, '');
+        // Use count aggregation for efficiency
+        const q = db.collection('crushes')
+            .where('periodId', '==', periodId)
+            .where('targetInstagram', '==', normalized)
+            .where('withdrawn', '==', false);
+        const snapshot = await q.count().get();
+        const count = snapshot.data().count;
+        res.json({ count });
+    }
+    catch (error) {
+        console.error("Error in checkVibe:", error);
+        res.status(500).json({ error: "Internal Server Error" });
+    }
 });
 //# sourceMappingURL=index.js.map

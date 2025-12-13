@@ -413,17 +413,30 @@ export const getMyCrushes = async (userId: string) => {
 
 export const getWhoLikesMeCount = async (myUsername: string, periodId: string) => {
   if (!myUsername) return 0;
-  const normalized = normalizeId(myUsername);
 
-  const q = query(
-    collection(db, 'crushes'),
-    where('periodId', '==', periodId),
-    where('targetInstagram', '==', normalized),
-    where('withdrawn', '==', false)
-  );
+  const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
+  const url = `https://us-central1-${projectId}.cloudfunctions.net/checkVibe`;
 
-  const snapshot = await getDocs(q);
-  return snapshot.size;
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ username: myUsername, periodId })
+    });
+
+    if (!res.ok) {
+      console.error("CheckVibe fetch error", await res.text());
+      return 0; // Fallback
+    }
+
+    const data = await res.json();
+    return data.count || 0;
+  } catch (error) {
+    console.error("Error calling checkVibe:", error);
+    return 0;
+  }
 };
 
 export const getMyMatches = async (username: string) => {
