@@ -26,7 +26,8 @@ import {
   or,
   and,
   onSnapshot,
-  writeBatch
+  writeBatch,
+  getCountFromServer
 } from 'firebase/firestore';
 import { UserProfile, Crush, Period, VisibilityMode, Match, PeriodStats } from '../types';
 
@@ -414,27 +415,20 @@ export const getMyCrushes = async (userId: string) => {
 export const getWhoLikesMeCount = async (myUsername: string, periodId: string) => {
   if (!myUsername) return 0;
 
-  const projectId = import.meta.env.VITE_FIREBASE_PROJECT_ID;
-  const url = `https://us-central1-${projectId}.cloudfunctions.net/checkVibe`;
+  const normalized = normalizeId(myUsername);
 
   try {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ username: myUsername, periodId })
-    });
+    const q = query(
+      collection(db, 'crushes'),
+      where('periodId', '==', periodId),
+      where('targetInstagram', '==', normalized),
+      where('withdrawn', '==', false)
+    );
 
-    if (!res.ok) {
-      console.error("CheckVibe fetch error", await res.text());
-      return 0; // Fallback
-    }
-
-    const data = await res.json();
-    return data.count || 0;
+    const snapshot = await getCountFromServer(q);
+    return snapshot.data().count;
   } catch (error) {
-    console.error("Error calling checkVibe:", error);
+    console.error("Error fetching likes count:", error);
     return 0;
   }
 };

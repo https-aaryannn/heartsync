@@ -45,7 +45,7 @@ export default function Dashboard({ user, activePeriod }: { user: User, activePe
       }
     };
     fetchLikes();
-  }, [activePeriod, user]);
+  }, [activePeriod, user, activeTab]);
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-10">
